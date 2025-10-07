@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import React, { useEffect } from "react";
-import { Image, StatusBar, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import Main from "./main";
 
 const Index = () => {
   useEffect(() => {
@@ -11,14 +12,16 @@ const Index = () => {
   }, []);
 
   return (
-    <View className="flex-1 items-center justify-center bg-primary">
-      <StatusBar hidden={true} />
-      <Image
-        source={require("../assets/images/cost-logo-256.png")}
-        className="w-32 h-32"
-        resizeMode="cover"
-      />
-    </View>
+    // <View className="flex-1 items-center justify-center bg-primary">
+    //   <StatusBar hidden={true} />
+    //   <Image
+    //     source={require("../assets/images/cost-logo-256.png")}
+    //     className="w-32 h-32"
+    //     resizeMode="cover"
+    //   />
+    // </View>
+
+    <Main />
   );
 };
 
