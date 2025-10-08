@@ -1,15 +1,13 @@
-import { router } from "expo-router";
-import React, { useEffect } from "react";
-import { StyleSheet } from "react-native";
+import React from "react";
 import Main from "./main";
 
 const Index = () => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace("/main"); // tự động chuyển sau 3 giây
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     router.replace("/main"); // tự động chuyển sau 3 giây
+  //   }, 3000);
+  //   return () => clearTimeout(timer);
+  // }, []);
 
   return (
     // <View className="flex-1 items-center justify-center bg-primary">
@@ -26,5 +24,3 @@ const Index = () => {
 };
 
 export default Index;
-
-const styles = StyleSheet.create({});

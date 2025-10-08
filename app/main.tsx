@@ -1,12 +1,31 @@
+import { formatMoney } from "@/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 
 const data = [
-  { category: "Ăn uống", percent: "50%", amount: 500000 },
-  { category: "Di chuyển", percent: "30%", amount: 300000 },
-  { category: "Giải trí", percent: "20%", amount: 200000 },
+  {
+    category: "Ăn uống",
+    percent: "50%",
+    amount: 500000,
+    method: "Bank",
+    detail: "Ăn sáng",
+  },
+  {
+    category: "Di chuyển",
+    percent: "30%",
+    amount: 300000,
+    method: "Wallet",
+    detail: "Xăng xe",
+  },
+  {
+    category: "Giải trí",
+    percent: "20%",
+    amount: 200000,
+    method: "Bank",
+    detail: "Mua ChatGPT",
+  },
 ];
 
 const Main = () => {
@@ -14,17 +33,17 @@ const Main = () => {
   const [time, setTime] = useState("Ngày");
 
   return (
-    <SafeAreaView className="flex bg-background">
-      <View className="flex h-[150px] bg-primary rounded-b-[40px]">
+    <View className="flex bg-background">
+      <View className="flex h-[160px] bg-primary rounded-b-[40px]">
         <View className="flex items-center align-middle">
-          <Text className="text-xl text-white pt-4">Tổng cộng</Text>
+          <Text className="text-xl text-white pt-12">Tổng cộng</Text>
           <TouchableOpacity>
-            <Text className="text-white font-bold text-2xl">3,500,000 đ</Text>
+            <Text className="text-white font-bold text-2xl">3.500.000 đ</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View className="flex justify-between items-center p-4 mt-4 absolute top-20 w-full">
+      <View className="flex justify-between items-center p-4 absolute top-20 w-full">
         <View className="flex w-full flex-row justify-around mt-2">
           {["Chi phí", "Thu nhập"].map((item) => {
             const isActive = item === activeTab;
@@ -115,32 +134,41 @@ const Main = () => {
             return (
               <TouchableOpacity
                 key={item.category}
-                onPress={() => console.log(item)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/detailCategory",
+                    params: {
+                      category: item.category,
+                      percent: String(item.percent),
+                      amount: String(item.amount),
+                      method: item.method,
+                      detail: item.detail,
+                    },
+                  })
+                }
                 className="flex-row w-full p-2 bg-white rounded-lg shadow-lg items-center"
               >
                 <Image
                   source={require("../assets/images/icon.png")}
-                  className="w-8 h-8 mr-2"
+                  className="w-10 h-10"
                   resizeMode="cover"
                 />
                 <Text className="w-[50%] text-left font-bold text-text">
                   {item.category}
                 </Text>
-                <Text className="w-[20%] text-center font-bold text-text">
+                <Text className="w-[10%] text-center font-bold text-text">
                   {item.percent}
                 </Text>
-                <Text className="w-[20%] text-center font-bold text-text">
-                  {item.amount}
+                <Text className="w-[30%] text-center font-bold text-text">
+                  {formatMoney(item.amount)}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 export default Main;
-
-const styles = StyleSheet.create({});
