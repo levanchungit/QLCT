@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
-const DetailCategory = () => {
+const ChiTietGiaoDich = () => {
   const { category, percent, amount, method, detail } = useLocalSearchParams();
 
   return (
@@ -34,7 +34,7 @@ const DetailCategory = () => {
       <TouchableOpacity
         onPress={() =>
           router.push({
-            pathname: "/detailTransaction",
+            pathname: "/chiTietLoaiGiaoDich",
             params: {
               category,
               percent: String(percent),
@@ -75,4 +75,4 @@ const DetailCategory = () => {
   );
 };
 
-export default DetailCategory;
+export default ChiTietGiaoDich;

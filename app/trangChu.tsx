@@ -28,7 +28,7 @@ const data = [
   },
 ];
 
-const Main = () => {
+const TrangChu = () => {
   const [activeTab, setActiveTab] = useState("Chi phí");
   const [time, setTime] = useState("Ngày");
 
@@ -51,12 +51,12 @@ const Main = () => {
               <TouchableOpacity
                 key={item}
                 onPress={() => setActiveTab(item)}
-                className={`px-4 py-0.5 border-b-2 ${
+                className={`w-[30%] px-2 py-0.5 border-b-2 ${
                   isActive ? "border-b-white" : "border-b-transparent"
                 }`}
               >
                 <Text
-                  className={`font-bold ${
+                  className={`text-center font-bold text-lg ${
                     isActive ? "text-white" : "text-gray-400"
                   }`}
                 >
@@ -136,7 +136,7 @@ const Main = () => {
                 key={item.category}
                 onPress={() =>
                   router.push({
-                    pathname: "/detailCategory",
+                    pathname: "/chiTietGiaoDich",
                     params: {
                       category: item.category,
                       percent: String(item.percent),
@@ -171,4 +171,4 @@ const Main = () => {
   );
 };
 
-export default Main;
+export default TrangChu;

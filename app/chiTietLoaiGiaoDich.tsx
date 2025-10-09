@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
-const DetailTransaction = () => {
+const ChiTietLoaiGiaoDich = () => {
   const { category, percent, amount, method, detail } = useLocalSearchParams();
 
   return (
@@ -26,9 +26,18 @@ const DetailTransaction = () => {
 
           <TouchableOpacity
             className="absolute right-4 top-14"
-            onPress={() => {
-              console.log("edit");
-            }}
+            onPress={() =>
+              router.push({
+                pathname: "/chinhSuaGiaoDich",
+                params: {
+                  category,
+                  percent: String(percent),
+                  amount: String(amount),
+                  method,
+                  detail,
+                },
+              })
+            }
           >
             <MaterialIcons name="edit" size={25} color="white" />
           </TouchableOpacity>
@@ -103,4 +112,4 @@ const DetailTransaction = () => {
   );
 };
 
-export default DetailTransaction;
+export default ChiTietLoaiGiaoDich;
