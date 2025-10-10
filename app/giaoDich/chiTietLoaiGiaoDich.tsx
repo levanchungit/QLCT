@@ -28,7 +28,7 @@ const ChiTietLoaiGiaoDich = () => {
             className="absolute right-4 top-14"
             onPress={() =>
               router.push({
-                pathname: "/chinhSuaGiaoDich",
+                pathname: "/giaoDich/chinhSuaGiaoDich",
                 params: {
                   category,
                   percent: String(percent),
@@ -55,7 +55,7 @@ const ChiTietLoaiGiaoDich = () => {
             <Text className="text-text text-sm">Tài khoản</Text>
             <View className="flex flex-row items-center gap-2">
               <Image
-                source={require("../assets/images/icon.png")}
+                source={require("../../assets/images/icon.png")}
                 className="w-10 h-10"
                 resizeMode="cover"
               />
@@ -67,7 +67,7 @@ const ChiTietLoaiGiaoDich = () => {
             <Text className="text-text text-sm">Danh mục</Text>
             <View className="flex flex-row items-center gap-2">
               <Image
-                source={require("../assets/images/icon.png")}
+                source={require("../../assets/images/icon.png")}
                 className="w-10 h-10"
                 resizeMode="cover"
               />

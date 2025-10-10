@@ -148,7 +148,7 @@ const ChinhSuaGiaoDich = () => {
             <Text className="text-text text-sm">Tài khoản</Text>
             <View className="flex-row items-center gap-2">
               <Image
-                source={require("../assets/images/icon.png")}
+                source={require("../../assets/images/icon.png")}
                 className="w-10 h-10"
                 resizeMode="cover"
               />
@@ -190,7 +190,7 @@ const ChinhSuaGiaoDich = () => {
                 className="w-[30%] items-center mb-4"
                 onPress={() =>
                   router.push({
-                    pathname: "/taoDanhMuc",
+                    pathname: "/danhMuc/taoDanhMuc",
                     params: {
                       category: category,
                     },

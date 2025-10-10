@@ -1,8 +1,12 @@
+import HeaderMenu from "@/components/HeaderMenu";
 import { formatMoney } from "@/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Image, Text, TouchableOpacity, View } from "react-native";
+import { PieChart } from "react-native-chart-kit";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const data = [
   {
@@ -28,20 +32,71 @@ const data = [
   },
 ];
 
+const dataChart = [
+  {
+    name: "Seoul",
+    population: 21500000,
+    color: "rgba(131, 167, 234, 1)",
+    legendFontColor: "#7F7F7F",
+    legendFontSize: 15,
+  },
+  {
+    name: "Toronto",
+    population: 2800000,
+    color: "#F00",
+    legendFontColor: "#7F7F7F",
+    legendFontSize: 15,
+  },
+  {
+    name: "Beijing",
+    population: 527612,
+    color: "red",
+    legendFontColor: "#7F7F7F",
+    legendFontSize: 15,
+  },
+  {
+    name: "New York",
+    population: 8538000,
+    color: "#ffffff",
+    legendFontColor: "#7F7F7F",
+    legendFontSize: 15,
+  },
+  {
+    name: "Moscow",
+    population: 11920000,
+    color: "rgb(0, 0, 255)",
+    legendFontColor: "#7F7F7F",
+    legendFontSize: 15,
+  },
+];
+
+const screenWidth = Dimensions.get("window").width;
+
 const TrangChu = () => {
   const [activeTab, setActiveTab] = useState("Chi phí");
   const [time, setTime] = useState("Ngày");
-
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   return (
-    <View className="flex bg-background">
-      <View className="flex h-[160px] bg-primary rounded-b-[40px]">
-        <View className="flex items-center align-middle">
-          <Text className="text-xl text-white pt-12">Tổng cộng</Text>
+    <View className="flex-1 bg-bg">
+      {/* Nút 3 gạch + (tuỳ chọn) tiêu đề */}
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+
+      {/* Nền xanh đặt absolute để phủ lên vùng đỉnh */}
+      <View
+        style={{ paddingTop: insets.top + 8 }} // đẩy nội dung xuống bên trong vùng an toàn
+        className="absolute top-0 left-0 right-0 h-[180px] bg-primary rounded-b-[40px]"
+      >
+        <View className="items-center">
+          <Text className="text-xl text-white">Tổng cộng</Text>
           <TouchableOpacity>
             <Text className="text-white font-bold text-2xl">3.500.000 đ</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* HeaderMenu trong suốt */}
+      <HeaderMenu backgroundColor="transparent" />
 
       <View className="flex justify-between items-center p-4 absolute top-20 w-full">
         <View className="flex w-full flex-row justify-around mt-2">
@@ -67,7 +122,7 @@ const TrangChu = () => {
           })}
         </View>
 
-        <View className="h-64 bg-white m-2 rounded-3xl">
+        <View className="bg-white m-2 rounded-3xl">
           <View className="flex flex-row justify-between my-2 mx-4">
             {["Ngày", "Tuần", "Tháng", "Năm", "Khoảng thời gian"].map(
               (item) => {
@@ -118,10 +173,22 @@ const TrangChu = () => {
               />
             </TouchableOpacity>
           </View>
+
           {/* 2 view chua: bieu do */}
-          <View className="flex-1 justify-center items-center">
-            <Text className="text-gray-400">[Biểu đồ sẽ hiển thị ở đây]</Text>
-          </View>
+          <PieChart
+            data={dataChart}
+            width={screenWidth}
+            height={200}
+            chartConfig={{
+              backgroundColor: "#ff3e03",
+              backgroundGradientFrom: "#ff3e03",
+              backgroundGradientTo: "#ff3e03",
+              color: (opacity = 1) => `rgba(${0}, ${0}, ${0}, ${opacity})`,
+            }}
+            accessor={"population"}
+            backgroundColor={"transparent"}
+            paddingLeft={"0"}
+          />
 
           <TouchableOpacity className="absolute bottom-4 right-4 bg-button rounded-full p-4 shadow-lg">
             <MaterialIcons name="add" size={24} />
@@ -136,7 +203,7 @@ const TrangChu = () => {
                 key={item.category}
                 onPress={() =>
                   router.push({
-                    pathname: "/chiTietGiaoDich",
+                    pathname: "/giaoDich/chiTietGiaoDich",
                     params: {
                       category: item.category,
                       percent: String(item.percent),

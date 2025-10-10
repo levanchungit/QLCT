@@ -121,7 +121,7 @@ const ThemDanhMuc = () => {
             {dataDanhMuc.length % 3 !== 0 && (
               <TouchableOpacity
                 className="w-[30%] items-center mb-5"
-                onPress={() => router.push("/taoDanhMuc")}
+                onPress={() => router.push("/danhMuc/taoDanhMuc")}
               >
                 <View className="w-16 h-16 rounded-full justify-center items-center bg-gray-300">
                   <MaterialIcons name="add" size={28} color="#FFFFFF" />

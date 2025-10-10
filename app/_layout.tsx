@@ -1,12 +1,10 @@
-import { Stack } from "expo-router";
+import { Drawer } from "expo-router/drawer";
 import "./global.css";
-
 export default function RootLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-      }}
-    />
+    <Drawer screenOptions={{ headerShown: false }}>
+      <Drawer.Screen name="index" options={{ title: "Trang chủ" }} />
+      <Drawer.Screen name="taiKhoan" options={{ title: "Tài khoản" }} />
+    </Drawer>
   );
 }

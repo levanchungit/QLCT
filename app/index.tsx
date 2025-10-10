@@ -1,5 +1,5 @@
 import React from "react";
-import Main from "./trangChu";
+import TrangChu from "./trangChu";
 
 const Index = () => {
   // useEffect(() => {
@@ -19,7 +19,7 @@ const Index = () => {
     //   />
     // </View>
 
-    <Main />
+    <TrangChu />
   );
 };
 

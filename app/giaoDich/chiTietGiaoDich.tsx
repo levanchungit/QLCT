@@ -34,7 +34,7 @@ const ChiTietGiaoDich = () => {
       <TouchableOpacity
         onPress={() =>
           router.push({
-            pathname: "/chiTietLoaiGiaoDich",
+            pathname: "/giaoDich/chiTietLoaiGiaoDich",
             params: {
               category,
               percent: String(percent),
@@ -48,7 +48,7 @@ const ChiTietGiaoDich = () => {
       >
         <View className="flex-row gap-2">
           <Image
-            source={require("../assets/images/icon.png")}
+            source={require("../../assets/images/icon.png")}
             className="w-10 h-10"
             resizeMode="cover"
           />
