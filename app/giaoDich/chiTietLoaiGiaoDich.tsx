@@ -1,4 +1,4 @@
-import { formatMoney } from "@/utils/format";
+import { formatMoney } from "@/src/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
