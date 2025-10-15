@@ -1,10 +1,6 @@
 // app/trangChu.tsx
 import HeaderMenu from "@/components/HeaderMenu";
-import {
-  categoryBreakdown,
-  seedSampleMonthRandom,
-  totalInRange,
-} from "@/src/repos/transactionRepo";
+import { categoryBreakdown, totalInRange } from "@/src/repos/transactionRepo";
 import { formatMoney } from "@/src/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -333,8 +329,11 @@ const TrangChu = () => {
           {/* Nút thêm */}
           <TouchableOpacity
             onPress={async () => {
-              await seedSampleMonthRandom({ year: 2025, month: 9, count: 15 });
-              await loadAll();
+              // await seedSampleMonthRandom({ year: 2025, month: 9, count: 15 });
+              // await loadAll();
+              router.push({
+                pathname: "/giaoDich/chinhSuaGiaoDich",
+              });
             }}
             className="absolute bottom-4 right-4 bg-button rounded-full p-4 shadow-lg"
           >
