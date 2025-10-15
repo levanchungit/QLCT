@@ -1,9 +1,9 @@
+// src/db/index.ts
 import * as SQLite from "expo-sqlite";
-
 import { runMigrations } from "./migrate";
-import { seedIfEmpty } from "./seed";
+import { seedIfEmpty } from "./seed-internal";
 
-export let db: SQLite.SQLiteDatabase;
+export let db: SQLite.SQLiteDatabase | undefined;
 
 export async function openDb() {
   if (db) return db;
