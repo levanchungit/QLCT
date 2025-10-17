@@ -6,7 +6,7 @@ import {
   MaterialIcons,
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { usePathname } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import React, { useEffect, useState } from "react";
 import {
@@ -180,7 +180,13 @@ function CustomDrawerContent(props: any) {
       >
         {/* Header */}
         <View className="px-5 pt-4 pb-3 border-b border-white/40">
-          <View className="flex-row items-center">
+          <TouchableOpacity
+            className="flex-row items-center"
+            onPress={() => {
+              props.navigation.closeDrawer();
+              router.push("/auth/register"); // điều hướng bằng path
+            }}
+          >
             <View className="w-16 h-16 rounded-full border border-white/50 items-center justify-center mr-4">
               <MaterialCommunityIcons
                 name="account"
@@ -189,7 +195,7 @@ function CustomDrawerContent(props: any) {
               />
             </View>
             <Text className="text-white text-lg font-semibold">Đăng ký</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Menu list (scrollable) */}
@@ -251,8 +257,8 @@ export default function RootLayout() {
       >
         <Drawer.Screen name="index" options={{ title: "Trang chủ" }} />
         <Drawer.Screen name="taiKhoan" options={{ title: "Tài khoản" }} />
-        {/* <Drawer.Screen name="bieuDo" options={{ title: "Biểu đồ" }} /> */}
         <Drawer.Screen name="danhMuc" options={{ title: "Danh mục" }} />
+        <Drawer.Screen name="auth" options={{ title: "Đăng nhập" }} />
       </Drawer>
     </SafeAreaProvider>
   );

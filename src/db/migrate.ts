@@ -1,3 +1,4 @@
+// migrate.ts
 import type { SQLiteDatabase } from "expo-sqlite";
 
 const initSQL = `
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS categories (
   icon TEXT, color TEXT,
   parent_id TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
 );
@@ -88,6 +90,68 @@ END;
 INSERT OR REPLACE INTO settings(key,value) VALUES('schema_version','1');
 `;
 
+// Đảm bảo cột tồn tại: nếu thiếu thì ADD COLUMN + backfill
+async function ensureColumn(
+  db: SQLiteDatabase,
+  table: string,
+  col: string,
+  ddl: string, // "INTEGER" | "TEXT"...
+  backfillSQL?: string // ví dụ: UPDATE categories SET updated_at = ...
+) {
+  const cols = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(${table})`
+  );
+  const has = cols.some((c) => c.name === col);
+  if (!has) {
+    await db.runAsync(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
+    if (backfillSQL) await db.runAsync(backfillSQL);
+  }
+}
+
 export async function runMigrations(db: SQLiteDatabase) {
+  // 1) Tạo bảng/cấu trúc cơ bản
   await db.execAsync(initSQL);
+
+  // 2) Nâng cấp bảng cũ (nếu đã tồn tại từ trước) — thêm cột còn thiếu
+  // categories
+  await ensureColumn(
+    db,
+    "categories",
+    "type",
+    "TEXT",
+    `UPDATE categories SET type = COALESCE(type, 'expense')`
+  );
+  await ensureColumn(db, "categories", "parent_id", "TEXT");
+  await ensureColumn(
+    db,
+    "categories",
+    "created_at",
+    "INTEGER",
+    `UPDATE categories SET created_at = COALESCE(created_at, strftime('%s','now'))`
+  );
+  await ensureColumn(
+    db,
+    "categories",
+    "updated_at",
+    "INTEGER",
+    `UPDATE categories SET updated_at = COALESCE(updated_at, created_at, strftime('%s','now'))`
+  );
+
+  // accounts
+  await ensureColumn(
+    db,
+    "accounts",
+    "updated_at",
+    "INTEGER",
+    `UPDATE accounts SET updated_at = COALESCE(updated_at, created_at, strftime('%s','now'))`
+  );
+
+  // transactions
+  await ensureColumn(
+    db,
+    "transactions",
+    "updated_at",
+    "INTEGER",
+    `UPDATE transactions SET updated_at = COALESCE(updated_at, created_at, strftime('%s','now'))`
+  );
 }

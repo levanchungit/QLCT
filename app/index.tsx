@@ -1,5 +1,5 @@
 import React from "react";
-import TrangChu from "./trangChu";
+import TrangChu from "./main";
 
 const Index = () => {
   // useEffect(() => {

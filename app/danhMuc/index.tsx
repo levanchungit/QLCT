@@ -1,4 +1,5 @@
 // app/danhMuc/index.tsx
+import HeaderMenu from "@/components/HeaderMenu";
 import {
   listCategories,
   seedCategoryDefaults,
@@ -22,8 +23,7 @@ export default function DanhMucIndex() {
   const [items, setItems] = useState<Category[]>([]);
 
   const load = useCallback(async () => {
-    // seed lần đầu cho đẹp
-    await seedCategoryDefaults();
+    await seedCategoryDefaults(); // seed lần đầu
     const rows = await listCategories();
     setItems(rows);
   }, []);
@@ -38,68 +38,77 @@ export default function DanhMucIndex() {
     }, [load])
   );
 
+  const COLS = 3;
+  const data = [...items, { id: "create", isCreate: true } as any];
+  const remainder = data.length % COLS;
+  const fillers = (COLS - remainder) % COLS;
+
   return (
     <View className="flex-1 bg-background">
-      {/* Header gọn */}
-      <View className="bg-primary rounded-b-[40px] pb-6 pt-12">
-        <View className="items-center">
-          <TouchableOpacity
-            className="absolute left-4"
-            onPress={() => router.back()}
-          >
-            <MaterialIcons name="arrow-back" size={25} color="white" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-white">Thêm danh mục</Text>
-        </View>
-      </View>
+      {/* Header */}
+      <HeaderMenu
+        title="Thêm danh mục"
+        backgroundColor="bg-primary"
+        height="h-[90px]"
+        paddingTop="pt-[30px]"
+      />
 
       <ScrollView
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 140,
+        }}
       >
-        <View className="flex-row flex-wrap justify-between">
-          {items.map((item) => (
+        <View className="flex-row flex-wrap justify-center gap-x-6 gap-y-5">
+          {data.map((item) => (
             <TouchableOpacity
               key={item.id}
-              className="w-[30%] items-center mb-5"
+              className="w-[28%] items-center mb-5"
               onPress={() =>
-                router.push({
-                  pathname: "/danhMuc/taoDanhMuc",
-                  params: { id: item.id },
-                })
+                item.isCreate
+                  ? router.push("/danhMuc/taoDanhMuc")
+                  : router.push({
+                      pathname: "/danhMuc/taoDanhMuc",
+                      params: { id: item.id },
+                    })
               }
               activeOpacity={0.85}
             >
               <View
-                className="w-16 h-16 rounded-full justify-center items-center"
-                style={{ backgroundColor: item.color ?? "#7EC5E8" }}
+                className={`w-16 h-16 rounded-full justify-center items-center ${
+                  item.isCreate ? "bg-gray-400" : ""
+                }`}
+                style={
+                  !item.isCreate
+                    ? { backgroundColor: item.color ?? "#7EC5E8" }
+                    : {}
+                }
               >
-                {renderIcon(item.icon)}
+                {item.isCreate ? (
+                  <MaterialIcons name="add" size={28} color="#fff" />
+                ) : (
+                  renderIcon(item.icon)
+                )}
               </View>
               <Text
                 className="w-full text-black text-[13px] mt-2 text-center"
                 numberOfLines={2}
               >
-                {item.name}
+                {item.isCreate ? "Tạo" : item.name}
               </Text>
             </TouchableOpacity>
           ))}
 
-          {/* Ô “Tạo” */}
-          <TouchableOpacity
-            className="w-[30%] items-center mb-5"
-            onPress={() => router.push("/danhMuc/taoDanhMuc")}
-            activeOpacity={0.85}
-          >
-            <View className="w-16 h-16 rounded-full justify-center items-center bg-gray-400">
-              <MaterialIcons name="add" size={28} color="#fff" />
-            </View>
-            <Text className="w-full text-black text-[13px] mt-2 text-center">
-              Tạo
-            </Text>
-          </TouchableOpacity>
+          {Array.from({ length: fillers }).map((_, i) => (
+            <View
+              key={`spacer-${i}`}
+              className="w-[28%] mb-5"
+              style={{ opacity: 0 }}
+            />
+          ))}
         </View>
       </ScrollView>
     </View>

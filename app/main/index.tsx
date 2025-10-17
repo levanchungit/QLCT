@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const screenWidth = Dimensions.get("window").width;
 const CHART_SIZE = screenWidth * 0.6;
 const HOLE_RATIO = 0.55;
+
 type Tab = "Chi phí" | "Thu nhập";
 type RangeKind = "Ngày" | "Tuần" | "Tháng" | "Năm" | "Khoảng thời gian";
 
@@ -58,7 +59,7 @@ function getRange(kind: RangeKind, anchor: Date) {
       label: `${d.getFullYear()}`,
     };
   }
-  // "Khoảng thời gian" – tạm dùng như Ngày, sau bạn gắn date picker
+  // "Khoảng thời gian" – tạm như Ngày
   const start = d.getTime() / 1000;
   return {
     startSec: start,
@@ -83,14 +84,11 @@ const TrangChu = () => {
     [time, anchor]
   );
 
-  // ... bên trong component TrangChu:
   const loadAll = React.useCallback(async () => {
     const type = activeTab === "Chi phí" ? "expense" : "income";
-    // tổng
     const sum = await totalInRange(startSec, endSec, type);
     setTotal(sum);
 
-    // breakdown
     const rows = await categoryBreakdown(startSec, endSec, type);
     const grand = rows.reduce((s, r) => s + (r.total || 0), 0) || 1;
     const palette = [
@@ -113,6 +111,7 @@ const TrangChu = () => {
         legendFontSize: 13,
       }))
     );
+
     setListData(
       rows.map((r, i) => ({
         category: r.name ?? "Khác",
@@ -123,48 +122,11 @@ const TrangChu = () => {
     );
   }, [activeTab, startSec, endSec]);
 
-  // load tổng + breakdown khi tab/time thay đổi
   useEffect(() => {
-    (async () => {
-      const type = activeTab === "Chi phí" ? "expense" : "income";
-      const sum = await totalInRange(startSec, endSec, type);
-      setTotal(sum);
+    loadAll();
+  }, [loadAll]);
 
-      const rows = await categoryBreakdown(startSec, endSec, type);
-      const grand = rows.reduce((s, r) => s + (r.total || 0), 0) || 1;
-      const palette = [
-        "#60a5fa",
-        "#34d399",
-        "#f59e0b",
-        "#ef4444",
-        "#a78bfa",
-        "#fb7185",
-        "#22d3ee",
-        "#84cc16",
-      ];
-
-      // Dữ liệu cho biểu đồ
-      const chart = rows.map((r, i) => ({
-        name: r.name ?? "Khác",
-        population: r.total,
-        color: r.color ?? palette[i % palette.length],
-        legendFontColor: "#7F7F7F",
-        legendFontSize: 13,
-      }));
-      setChartData(chart);
-
-      // Dữ liệu cho danh sách
-      const list = rows.map((r, i) => ({
-        category: r.name ?? "Khác",
-        percent: `${Math.round((r.total / grand) * 100)}%`,
-        amount: r.total,
-        color: r.color ?? palette[i % palette.length],
-      }));
-      setListData(list);
-    })();
-  }, [activeTab, startSec, endSec]);
-
-  // điều hướng mốc thời gian khi bấm mũi tên
+  // điều hướng mốc thời gian
   const shiftAnchor = (dir: -1 | 1) => {
     const a = new Date(anchor);
     if (time === "Ngày" || time === "Khoảng thời gian")
@@ -175,12 +137,8 @@ const TrangChu = () => {
     setAnchor(a);
   };
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
-
   return (
-    <View className="flex-1 bg-bg">
+    <View className="flex-1 bg-light">
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       {/* Header xanh */}
@@ -201,22 +159,18 @@ const TrangChu = () => {
       <HeaderMenu backgroundColor="transparent" />
 
       <View className="flex justify-between items-center p-4 absolute top-20 w-full gap-2 mt-2">
-        {/* Tabs Chi phí | Thu nhập */}
-        <View className="flex w-full flex-row justify-around">
+        {/* Tabs */}
+        <View className="w-full flex-row justify-around">
           {(["Chi phí", "Thu nhập"] as Tab[]).map((item) => {
             const isActive = item === activeTab;
             return (
               <TouchableOpacity
                 key={item}
                 onPress={() => setActiveTab(item)}
-                className={`w-[30%] px-2 py-0.5 border-b-2 ${
-                  isActive ? "border-b-white" : "border-b-transparent"
-                }`}
+                className={`w-[30%] px-2 py-0.5 border-b-2 ${isActive ? "border-b-white" : "border-b-transparent"}`}
               >
                 <Text
-                  className={`text-center font-bold text-lg ${
-                    isActive ? "text-white" : "text-gray-400"
-                  }`}
+                  className={`text-center font-bold text-lg ${isActive ? "text-white" : "text-gray-300"}`}
                 >
                   {item.toUpperCase()}
                 </Text>
@@ -227,7 +181,7 @@ const TrangChu = () => {
 
         {/* Bộ lọc thời gian */}
         <View className="bg-white p-2 w-full rounded-3xl">
-          <View className="flex flex-row justify-between my-2 mx-4">
+          <View className="flex-row justify-between my-2 mx-4">
             {(
               [
                 "Ngày",
@@ -257,7 +211,7 @@ const TrangChu = () => {
           </View>
 
           {/* Điều hướng mốc thời gian */}
-          <View className="flex flex-row justify-between px-4">
+          <View className="flex-row justify-between px-4">
             <TouchableOpacity onPress={() => shiftAnchor(-1)}>
               <MaterialIcons
                 name="keyboard-arrow-left"
@@ -279,6 +233,7 @@ const TrangChu = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Biểu đồ hình tròn */}
           <View className="w-full items-center">
             <View
               style={{
@@ -326,23 +281,19 @@ const TrangChu = () => {
             </View>
           </View>
 
-          {/* Nút thêm */}
+          {/* Nút thêm (FAB) */}
           <TouchableOpacity
-            onPress={async () => {
-              // await seedSampleMonthRandom({ year: 2025, month: 9, count: 15 });
-              // await loadAll();
-              router.push({
-                pathname: "/giaoDich/chinhSuaGiaoDich",
-              });
+            onPress={() => {
+              router.push({ pathname: "/giaoDich/chinhSuaGiaoDich" });
             }}
-            className="absolute bottom-4 right-4 bg-button rounded-full p-4 shadow-lg"
+            className="absolute bottom-4 right-4 bg-primary rounded-full p-4 shadow-lg"
           >
-            <MaterialIcons name="add" size={24} />
+            <MaterialIcons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Danh sách chi tiết theo danh mục */}
-        <View className="flex w-full gap-2">
+        <View className="w-full gap-2">
           {listData.map((item) => (
             <TouchableOpacity
               key={item.category}
@@ -356,19 +307,19 @@ const TrangChu = () => {
                   },
                 })
               }
-              className="flex-row w-full p-2 bg-white rounded-lg shadow-lg items-center"
+              className="flex-row w-full p-2 bg-white rounded-xl shadow items-center"
             >
               <View
-                className="w-10 h-10 rounded-full mr-2"
+                className="w-10 h-10 rounded-full mr-3"
                 style={{ backgroundColor: item.color ?? "#e5e7eb" }}
               />
-              <Text className="w-[50%] text-left font-bold text-text">
+              <Text className="w-[50%] text-left font-bold text-gray-800">
                 {item.category}
               </Text>
-              <Text className="w-[10%] text-center font-bold text-text">
+              <Text className="w-[10%] text-center font-semibold text-gray-800">
                 {item.percent}
               </Text>
-              <Text className="w-[28%] text-center font-bold text-text">
+              <Text className="w-[28%] text-center font-bold text-gray-800">
                 {formatMoney(item.amount)}
               </Text>
             </TouchableOpacity>

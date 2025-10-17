@@ -10,6 +10,9 @@ module.exports = {
         background: "#F9FAF4",
         text: "#787973",
         button: "#FCC232",
+        primaryDark: "#5C7F64",
+        light: "#F9FAF7",
+        yellow: "#FFD87A",
       },
       fontFamily: {
         sans: ["Helvetica", "Arial", "sans-serif"],
