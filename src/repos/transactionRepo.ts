@@ -129,6 +129,30 @@ export async function addExpense({
   return id;
 }
 
+export async function addIncome({
+  accountId,
+  categoryId,
+  amount,
+  note,
+  when,
+}: {
+  accountId: string;
+  categoryId: string;
+  amount: number;
+  note?: string;
+  when: Date;
+}) {
+  await openDb();
+  const id = `tx_${Math.random().toString(36).slice(2)}`;
+  const t = Math.floor(when.getTime() / 1000);
+  await db.runAsync(
+    `INSERT INTO transactions(id,user_id,account_id,category_id,type,amount,note,occurred_at)
+     VALUES(?,?,?,?,?,?,?,?)`,
+    [id, "u_demo", accountId, categoryId, "income", amount, note ?? null, t]
+  );
+  return id;
+}
+
 export async function listByDay(day: Date) {
   await openDb();
   const start = new Date(day);

@@ -3,9 +3,9 @@ import HeaderMenu from "@/components/HeaderMenu";
 import { categoryBreakdown, totalInRange } from "@/src/repos/transactionRepo";
 import { formatMoney } from "@/src/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Dimensions, Text, TouchableOpacity, View } from "react-native";
 import { PieChart } from "react-native-chart-kit";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -122,9 +122,11 @@ const TrangChu = () => {
     );
   }, [activeTab, startSec, endSec]);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
 
   // điều hướng mốc thời gian
   const shiftAnchor = (dir: -1 | 1) => {
@@ -313,13 +315,13 @@ const TrangChu = () => {
                 className="w-10 h-10 rounded-full mr-3"
                 style={{ backgroundColor: item.color ?? "#e5e7eb" }}
               />
-              <Text className="w-[50%] text-left font-bold text-gray-800">
+              <Text className="w-[40%] text-left font-bold text-gray-800">
                 {item.category}
               </Text>
-              <Text className="w-[10%] text-center font-semibold text-gray-800">
+              <Text className="w-[20%] text-center font-semibold text-gray-800">
                 {item.percent}
               </Text>
-              <Text className="w-[28%] text-center font-bold text-gray-800">
+              <Text className="w-[30%] text-center font-bold text-gray-800">
                 {formatMoney(item.amount)}
               </Text>
             </TouchableOpacity>
