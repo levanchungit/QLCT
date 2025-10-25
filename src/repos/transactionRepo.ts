@@ -5,6 +5,7 @@ export type TxDetailRow = {
   amount: number;
   note: string | null;
   occurred_at: number;
+  updated_at: number;
   account_name: string;
   category_name: string | null;
   category_icon: string | null;
@@ -107,34 +108,47 @@ export async function seedSampleMonthRandom({
     }
 
     await db.execAsync("COMMIT");
-    console.log(
-      `✅ Seed random ${count} giao dịch tháng ${month + 1}/${year} thành công`
-    );
   } catch (e) {
     await db.execAsync("ROLLBACK");
     console.error("❌ Seed random lỗi:", e);
   }
 }
+
 export async function addExpense({
   accountId,
   categoryId,
   amount,
   note,
   when,
+  updatedAt,
 }: {
   accountId: string;
   categoryId: string;
   amount: number;
   note?: string;
   when: Date;
+  updatedAt: Date;
 }) {
   await openDb();
   const id = `tx_${Math.random().toString(36).slice(2)}`;
-  const t = Math.floor(when.getTime() / 1000);
+  const occurred = Math.floor(when.getTime() / 1000);
+  const updated = Math.floor(updatedAt.getTime() / 1000);
+  console.log(updated);
   await db.runAsync(
-    `INSERT INTO transactions(id,user_id,account_id,category_id,type,amount,note,occurred_at)
-     VALUES(?,?,?,?,?,?,?,?)`,
-    [id, "u_demo", accountId, categoryId, "expense", amount, note ?? null, t]
+    `INSERT INTO transactions
+      (id,user_id,account_id,category_id,type,amount,note,occurred_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?)`,
+    [
+      id,
+      "u_demo",
+      accountId,
+      categoryId,
+      "expense",
+      amount,
+      note ?? null,
+      occurred,
+      updated,
+    ]
   );
   return id;
 }
@@ -145,20 +159,35 @@ export async function addIncome({
   amount,
   note,
   when,
+  updatedAt,
 }: {
   accountId: string;
   categoryId: string;
   amount: number;
   note?: string;
   when: Date;
+  updatedAt: Date;
 }) {
   await openDb();
   const id = `tx_${Math.random().toString(36).slice(2)}`;
-  const t = Math.floor(when.getTime() / 1000);
+  const occurred = Math.floor(when.getTime() / 1000);
+  const updated = Math.floor(updatedAt.getTime() / 1000);
+
   await db.runAsync(
-    `INSERT INTO transactions(id,user_id,account_id,category_id,type,amount,note,occurred_at)
-     VALUES(?,?,?,?,?,?,?,?)`,
-    [id, "u_demo", accountId, categoryId, "income", amount, note ?? null, t]
+    `INSERT INTO transactions
+      (id,user_id,account_id,category_id,type,amount,note,occurred_at,updated_at)
+     VALUES(?,?,?,?,?,?,?,?,?)`,
+    [
+      id,
+      "u_demo",
+      accountId,
+      categoryId,
+      "income",
+      amount,
+      note ?? null,
+      occurred,
+      updated,
+    ]
   );
   return id;
 }
@@ -232,6 +261,7 @@ export async function listTxByCategory(params: {
            t.amount,
            t.note,
            t.occurred_at,
+           t.updated_at,
            a.name AS account_name,
            c.name AS category_name,
            c.icon AS category_icon
@@ -251,4 +281,68 @@ export async function deleteTx(id: string, userId = "u_demo") {
     id,
     userId,
   ]);
+}
+
+export async function updateTransaction({
+  id,
+  accountId,
+  categoryId,
+  type, // "expense" | "income"
+  amount,
+  note,
+  when, // Date
+}: {
+  id: string;
+  accountId: string;
+  categoryId: string | null;
+  type: "expense" | "income";
+  amount: number;
+  note?: string | null;
+  when: Date;
+}) {
+  await openDb();
+  const occurred = Math.floor(when.getTime() / 1000);
+  const updated = Math.floor(Date.now() / 1000);
+
+  await db.runAsync(
+    `UPDATE transactions
+       SET account_id=?,
+           category_id=?,
+           type=?,
+           amount=?,
+           note=?,
+           occurred_at=?,
+           updated_at=?
+     WHERE id=? AND user_id='u_demo'`,
+    [accountId, categoryId, type, amount, note ?? null, occurred, updated, id]
+  );
+  return id;
+}
+
+export async function getTxById(id: string) {
+  await openDb();
+  return db.getFirstAsync<{
+    id: string;
+    amount: number;
+    note: string | null;
+    occurred_at: number;
+    updated_at: number | null;
+    account_name: string;
+    category_name: string | null;
+  }>(
+    `
+    SELECT t.id,
+           t.amount,
+           t.note,
+           t.occurred_at,
+           t.updated_at,
+           a.name AS account_name,
+           c.name AS category_name
+    FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    LEFT JOIN categories c ON c.id = t.category_id
+    WHERE t.user_id='u_demo' AND t.id=?
+    `,
+    [id]
+  );
 }

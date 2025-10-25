@@ -8,7 +8,10 @@ CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  name TEXT
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -153,5 +156,22 @@ export async function runMigrations(db: SQLiteDatabase) {
     "updated_at",
     "INTEGER",
     `UPDATE transactions SET updated_at = COALESCE(updated_at, created_at, strftime('%s','now'))`
+  );
+
+  await ensureColumn(db, "users", "username", "TEXT");
+  await ensureColumn(db, "users", "password_hash", "TEXT");
+  await ensureColumn(
+    db,
+    "users",
+    "created_at",
+    "INTEGER",
+    `UPDATE users SET created_at = strftime('%s','now')`
+  );
+  await ensureColumn(
+    db,
+    "users",
+    "updated_at",
+    "INTEGER",
+    `UPDATE users SET updated_at = strftime('%s','now')`
   );
 }

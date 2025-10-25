@@ -184,7 +184,7 @@ function CustomDrawerContent(props: any) {
             className="flex-row items-center"
             onPress={() => {
               props.navigation.closeDrawer();
-              router.push("/auth/register"); // điều hướng bằng path
+              router.push("/auth"); // điều hướng bằng path
             }}
           >
             <View className="w-16 h-16 rounded-full border border-white/50 items-center justify-center mr-4">

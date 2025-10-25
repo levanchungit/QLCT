@@ -61,7 +61,6 @@ export async function createUserWithPassword({
 
   // DÙNG hashSync với rounds (10)
   const password_hash = bcrypt.hashSync(pwd, 10);
-  console.log("hash OK", password_hash);
 
   const id = genId("u_");
   const now = Math.floor(Date.now() / 1000);

@@ -1,19 +1,26 @@
 import HeaderMenu from "@/components/HeaderMenu";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
 export default function Profile() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    id?: string;
+    username?: string;
+    email?: string;
+  }>();
+
   const user = {
-    name: "Lê Văn Chung",
-    email: "levanchunggg123@gmail.com",
-    id: "5764808",
+    name: params.username || "Không rõ",
+    email: params.email || "Không có email",
+    id: params.id || "N/A",
     avatar:
       "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=640",
   };
 
   return (
     <View className="flex-1 bg-light">
-      {/* Header */}
       <HeaderMenu
         title={"Hồ sơ"}
         backgroundColor="bg-primary"
@@ -32,10 +39,9 @@ export default function Profile() {
           </TouchableOpacity>
         </View>
 
-        {/* Info */}
         <View className="mt-10 w-full space-y-4">
           <View className="flex-row items-center bg-white rounded-xl p-4 border border-gray-100">
-            <MaterialCommunityIcons name="facebook" size={24} color="#1877F2" />
+            <MaterialCommunityIcons name="account" size={24} color="#1877F2" />
             <View className="ml-3">
               <Text className="text-gray-500 text-xs">Tên</Text>
               <Text className="text-gray-800 text-base font-medium">
@@ -64,7 +70,10 @@ export default function Profile() {
           </View>
         </View>
 
-        <TouchableOpacity className="flex-row items-center self-end mt-8 bg-green-100 px-4 py-2 rounded-xl">
+        <TouchableOpacity
+          onPress={() => router.replace("/auth/login")}
+          className="flex-row items-center self-end mt-8 bg-green-100 px-4 py-2 rounded-xl"
+        >
           <Text className="text-primaryDark font-semibold mr-1">Thoát</Text>
           <MaterialIcons name="logout" size={18} color="#5C7F64" />
         </TouchableOpacity>

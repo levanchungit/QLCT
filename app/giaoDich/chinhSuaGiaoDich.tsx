@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Modal,
@@ -15,15 +15,18 @@ import {
 
 import { listAccounts } from "@/src/repos/accountRepo";
 import { listCategories } from "@/src/repos/categoryRepo";
-import { addExpense, addIncome } from "@/src/repos/transactionRepo";
+import {
+  addExpense,
+  addIncome,
+  updateTransaction,
+} from "@/src/repos/transactionRepo";
 import { formatMoney } from "@/src/utils/format";
 
-type IconLib = "mi" | "mc";
 type Category = {
   id: string;
   name: string;
   color?: string;
-  icon?: string; // dạng "mi:wallet" hoặc "mc:cash"
+  icon?: string; // "mi:wallet" | "mc:cash"
   type: "expense" | "income";
 };
 
@@ -39,7 +42,18 @@ const renderIcon = (packed: string | null | undefined, size = 28) => {
 };
 
 const ChinhSuaGiaoDich = () => {
-  const { amount, detail } = useLocalSearchParams();
+  // Nhận params để preselect khi chỉnh sửa
+  const params = useLocalSearchParams();
+  const { id, amount, detail, method, category, occurred_at } =
+    (params as {
+      id?: string;
+      amount?: string | number;
+      detail?: string;
+      method?: string; // tên tài khoản
+      category?: string; // tên danh mục
+      occurred_at?: string | number; // epoch seconds
+    }) ?? {};
+
   const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const [inputAmount, setInputAmount] = useState(amount ? String(amount) : "");
   const [inputDetail, setInputDetail] = useState(detail ? String(detail) : "");
@@ -49,59 +63,112 @@ const ChinhSuaGiaoDich = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null
   );
-  const today = dayjs();
-  const [selectedDate, setSelectedDate] = useState(today);
+
+  // Set ngày mặc định theo occurred_at nếu có
+  const [selectedDate, setSelectedDate] = useState(
+    typeof occurred_at !== "undefined"
+      ? dayjs.unix(Number(occurred_at))
+      : dayjs()
+  );
 
   const [showAccountModal, setShowAccountModal] = useState(false);
 
-  const dates = useMemo(
-    () => [
-      { d: today, label: "hôm nay" },
-      { d: today.subtract(1, "day"), label: "hôm qua" },
-      { d: today.subtract(2, "day"), label: "hai ngày trước" },
-      { d: today.subtract(3, "day"), label: "ba ngày trước" },
-      { d: today.subtract(4, "day"), label: "bốn ngày trước" },
-    ],
-    []
-  );
+  const today = dayjs();
 
-  // Load tài khoản và danh mục
+  // Load tài khoản & danh mục
   useEffect(() => {
     (async () => {
       const accs = await listAccounts();
-      setAccounts(accs);
-      if (accs.length > 0) setSelectedAccount(accs[0]);
       const cats = await listCategories();
+      setAccounts(accs);
       setCategories(cats);
     })();
   }, []);
 
-  // ======= Xử lý lưu giao dịch =======
-  const handleSaveTransaction = async () => {
+  // Khi có accounts/categories + params => preselect
+  useEffect(() => {
+    if (!accounts.length || !categories.length) return;
+
+    // Chọn tài khoản theo tên (method)
+    if (method) {
+      const acc = accounts.find((a) => a.name === method);
+      if (acc) setSelectedAccount(acc);
+    } else if (!selectedAccount && accounts.length) {
+      setSelectedAccount(accounts[0]);
+    }
+
+    // Chọn danh mục theo tên (category) + set tab đúng type
+    if (category) {
+      const cat = categories.find((c) => c.name === category);
+      if (cat) {
+        setSelectedCategory(cat);
+        setActiveTab(cat.type);
+      }
+    }
+  }, [accounts, categories, method, category]);
+
+  // ======= Lưu giao dịch (giữ nguyên hành vi add) =======
+  const handleSaveTransaction = useCallback(async () => {
     const amt = parseInt((inputAmount ?? "").replace(/\D/g, ""), 10);
     if (!amt || amt <= 0) return Alert.alert("Lỗi", "Số tiền không hợp lệ");
     if (!selectedAccount) return Alert.alert("Lỗi", "Chưa chọn tài khoản");
     if (!selectedCategory) return Alert.alert("Lỗi", "Chưa chọn danh mục");
 
-    const when = dayjs(selectedDate).isValid()
-      ? selectedDate.toDate()
-      : new Date();
-
+    const when = selectedDate.isValid() ? selectedDate.toDate() : new Date();
+    console.log("object", {
+      id: String(id),
+      accountId: selectedAccount.id,
+      categoryId: selectedCategory.id,
+      type: activeTab, // "expense" | "income"
+      amount: amt,
+      note: inputDetail || null,
+      when,
+    });
     try {
-      const fn = activeTab === "expense" ? addExpense : addIncome;
-      await fn({
-        accountId: selectedAccount.id,
-        categoryId: selectedCategory.id,
-        amount: amt,
-        note: inputDetail || null,
-        when,
-      });
-      router.replace("/main");
+      if (id) {
+        // ✅ CHỈNH SỬA (UPDATE)
+        await updateTransaction({
+          id: String(id),
+          accountId: selectedAccount.id,
+          categoryId: selectedCategory.id,
+          type: activeTab, // "expense" | "income"
+          amount: amt,
+          note: inputDetail || null,
+          when,
+        });
+      } else {
+        // ✅ TẠO MỚI (INSERT)
+        const fn = activeTab === "expense" ? addExpense : addIncome;
+        await fn({
+          accountId: selectedAccount.id,
+          categoryId: selectedCategory.id,
+          amount: amt,
+          note: inputDetail || null,
+          when,
+          updatedAt: new Date(), // tự set updated_at cho bản ghi mới
+        });
+      }
+      router.back();
     } catch (e) {
       console.error("❌ Lỗi lưu giao dịch:", e);
       Alert.alert("Lỗi", "Không thể lưu giao dịch");
     }
-  };
+  }, [
+    id,
+    inputAmount,
+    inputDetail,
+    selectedAccount,
+    selectedCategory,
+    activeTab,
+    selectedDate,
+  ]);
+
+  const displayed = useMemo(
+    () => categories.filter((c) => c.type === activeTab),
+    [categories, activeTab]
+  );
+  const COLS = 3;
+  const fillers = (COLS - (displayed.length % COLS)) % COLS;
 
   return (
     <View className="flex-1 bg-background">
@@ -115,7 +182,7 @@ const ChinhSuaGiaoDich = () => {
             <MaterialIcons name="arrow-back" size={25} color="white" />
           </TouchableOpacity>
           <Text className="text-center text-xl text-white font-bold">
-            {selectedCategory ? "Chỉnh sửa giao dịch" : "Tạo giao dịch"}
+            {id ? "Chỉnh sửa giao dịch" : "Tạo giao dịch"}
           </Text>
         </View>
 
@@ -128,7 +195,11 @@ const ChinhSuaGiaoDich = () => {
             ].map((tab) => (
               <TouchableOpacity
                 key={tab.key}
-                onPress={() => setActiveTab(tab.key as any)}
+                onPress={() => {
+                  setActiveTab(tab.key as any);
+                  // Nếu chuyển tab khác, bỏ chọn category để tránh mismatch
+                  setSelectedCategory(null);
+                }}
                 className={`border-b-2 ${
                   activeTab === tab.key ? "border-white" : "border-transparent"
                 }`}
@@ -145,6 +216,7 @@ const ChinhSuaGiaoDich = () => {
           </View>
         </View>
       </View>
+
       {/* BODY */}
       <ScrollView
         className="flex-1"
@@ -169,6 +241,7 @@ const ChinhSuaGiaoDich = () => {
             <MaterialIcons name="calculate" size={40} color="green" />
           </TouchableOpacity>
         </View>
+
         {/* TÀI KHOẢN */}
         <View className="mt-4 gap-2">
           <TouchableOpacity
@@ -195,6 +268,7 @@ const ChinhSuaGiaoDich = () => {
             )}
           </TouchableOpacity>
         </View>
+
         {/* DANH MỤC */}
         <View className="mt-4 gap-2">
           <Text className="text-text text-sm">Danh mục</Text>
@@ -204,31 +278,58 @@ const ChinhSuaGiaoDich = () => {
             </Text>
           )}
 
-          <View className="flex-row flex-wrap justify-between mt-2">
-            {categories
-              .filter((c) => c.type === activeTab)
-              .map((cat) => {
-                const isSelected = selectedCategory?.id === cat.id;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    className="w-[30%] items-center mb-4"
-                    onPress={() => setSelectedCategory(cat)}
+          <View className="flex-row flex-wrap justify-center gap-x-6 gap-y-5 mt-2">
+            {displayed.map((cat) => {
+              const isSelected = selectedCategory?.id === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat)}
+                  activeOpacity={0.9}
+                  className={`w-[28%] items-center mb-5 p-2 ${
+                    isSelected ? "bg-[#63B3ED] rounded-2xl" : "bg-transparent"
+                  }`}
+                  style={{
+                    shadowColor: "#000",
+                    shadowOpacity: isSelected ? 0.12 : 0,
+                    shadowRadius: isSelected ? 6 : 0,
+                    shadowOffset: { width: 0, height: 3 },
+                    elevation: isSelected ? 3 : 0,
+                  }}
+                >
+                  <View
+                    className="w-16 h-16 rounded-full justify-center items-center bg-transparent"
+                    style={{
+                      backgroundColor: isSelected
+                        ? "transparent"
+                        : (cat.color ?? "#7EC5E8"),
+                    }}
                   >
-                    <View
-                      className={`w-16 h-16 rounded-full justify-center items-center ${
-                        isSelected ? "border-4 border-green-500" : ""
-                      }`}
-                      style={{ backgroundColor: cat.color ?? "#ccc" }}
-                    >
-                      {renderIcon(cat.icon, 28)}
-                    </View>
-                    <Text className="mt-1 text-black">{cat.name}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+                    {renderIcon(cat.icon, 28)}
+                  </View>
+
+                  <Text
+                    className={`mt-2 text-[13px] font-semibold text-center ${
+                      isSelected ? "text-white" : "text-black"
+                    }`}
+                    numberOfLines={2}
+                  >
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {Array.from({ length: fillers }).map((_, i) => (
+              <View
+                key={`spacer-${i}`}
+                className="w-[28%] mb-5"
+                style={{ opacity: 0 }}
+              />
+            ))}
           </View>
         </View>
+
         {/* CHỌN NGÀY */}
         <View className="mt-2 flex-row items-center justify-between">
           <ScrollView
@@ -236,7 +337,13 @@ const ChinhSuaGiaoDich = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ columnGap: 16 }}
           >
-            {dates.map((item) => {
+            {[
+              { d: today, label: "hôm nay" },
+              { d: today.subtract(1, "day"), label: "hôm qua" },
+              { d: today.subtract(2, "day"), label: "hai ngày trước" },
+              { d: today.subtract(3, "day"), label: "ba ngày trước" },
+              { d: today.subtract(4, "day"), label: "bốn ngày trước" },
+            ].map((item) => {
               const isSelected = item.d.isSame(selectedDate, "day");
               return (
                 <TouchableOpacity
@@ -269,6 +376,7 @@ const ChinhSuaGiaoDich = () => {
             <MaterialIcons name="calendar-today" size={28} color="green" />
           </TouchableOpacity>
         </View>
+
         {/* GHI CHÚ */}
         <View className="mt-4">
           <Text className="text-text text-sm">Ghi chú</Text>
@@ -283,6 +391,7 @@ const ChinhSuaGiaoDich = () => {
             {(inputDetail ?? "").length}/4096
           </Text>
         </View>
+
         {/* Ảnh */}
         <View className="mt-2">
           <View>
@@ -313,6 +422,8 @@ const ChinhSuaGiaoDich = () => {
           <Text className="text-center text-black font-semibold">Lưu</Text>
         </TouchableOpacity>
       </View>
+
+      {/* MODAL CHỌN TÀI KHOẢN */}
       <Modal visible={showAccountModal} animationType="fade" transparent>
         <Pressable
           className="flex-1 bg-black/40"

@@ -301,7 +301,7 @@ const TrangChu = () => {
               key={item.category}
               onPress={() =>
                 router.push({
-                  pathname: "/giaoDich/chiTietGiaoDich",
+                  pathname: "/giaoDich",
                   params: {
                     category: item.category,
                     percent: item.percent,
