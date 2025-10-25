@@ -1,11 +1,37 @@
+import { deleteTx } from "@/src/repos/transactionRepo";
 import { formatMoney } from "@/src/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
 
 const ChiTietLoaiGiaoDich = () => {
-  const { category, percent, amount, method, detail } = useLocalSearchParams();
+  const { id, category, percent, amount, method, detail } =
+    useLocalSearchParams();
+
+  const handleDelete = React.useCallback(() => {
+    if (!id) return;
+    Alert.alert(
+      "Xoá giao dịch",
+      "Bạn có chắc muốn xoá giao dịch này?",
+      [
+        { text: "Huỷ", style: "cancel" },
+        {
+          text: "Xoá",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTx(String(id));
+              router.back(); // quay lại và để màn trước tự refresh danh sách
+            } catch (e: any) {
+              Alert.alert("Không thể xoá", e?.message ?? String(e));
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [id]);
 
   return (
     <View className="flex-1 bg-background">
@@ -93,10 +119,7 @@ const ChiTietLoaiGiaoDich = () => {
               <Text className="text-primary">SAO CHÉP</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => console.log("delete")}
-              className=""
-            >
+            <TouchableOpacity onPress={handleDelete} className="">
               <Text className="text-red-600">XOÁ</Text>
             </TouchableOpacity>
           </View>

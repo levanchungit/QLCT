@@ -1,5 +1,15 @@
 import { db, openDb } from "../db";
 
+export type TxDetailRow = {
+  id: string;
+  amount: number;
+  note: string | null;
+  occurred_at: number;
+  account_name: string;
+  category_name: string | null;
+  category_icon: string | null;
+};
+
 export async function totalInRange(
   startSec: number,
   endSec: number,
@@ -170,4 +180,75 @@ export async function listByDay(day: Date) {
   `,
     [s, e]
   );
+}
+
+export async function listTxByCategory(params: {
+  userId?: string;
+  categoryId?: string;
+  categoryName?: string;
+  fromSec?: number;
+  toSec?: number;
+}): Promise<TxDetailRow[]> {
+  const {
+    userId = "u_demo",
+    categoryId,
+    categoryName,
+    fromSec,
+    toSec,
+  } = params;
+
+  if (!categoryId && !categoryName) {
+    throw new Error("listTxByCategory: cần categoryId hoặc categoryName");
+  }
+
+  await openDb();
+
+  // Xây WHERE động
+  const whereParts = [`t.user_id=?`];
+  const args: any[] = [userId];
+
+  if (categoryId) {
+    whereParts.push(`c.id=?`);
+    args.push(categoryId);
+  } else if (categoryName) {
+    whereParts.push(`c.name=?`);
+    args.push(categoryName);
+  }
+
+  if (typeof fromSec === "number") {
+    whereParts.push(`t.occurred_at>=?`);
+    args.push(fromSec);
+  }
+  if (typeof toSec === "number") {
+    whereParts.push(`t.occurred_at<?`);
+    args.push(toSec);
+  }
+
+  const whereSql = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
+
+  return db.getAllAsync<TxDetailRow>(
+    `
+    SELECT t.id,
+           t.amount,
+           t.note,
+           t.occurred_at,
+           a.name AS account_name,
+           c.name AS category_name,
+           c.icon AS category_icon
+    FROM transactions t
+    JOIN accounts a ON a.id = t.account_id
+    LEFT JOIN categories c ON c.id = t.category_id
+    ${whereSql}
+    ORDER BY t.occurred_at DESC
+    `,
+    args
+  );
+}
+
+export async function deleteTx(id: string, userId = "u_demo") {
+  await openDb();
+  await db.runAsync(`DELETE FROM transactions WHERE id=? AND user_id=?`, [
+    id,
+    userId,
+  ]);
 }
