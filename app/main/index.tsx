@@ -3,6 +3,7 @@ import HeaderMenu from "@/components/HeaderMenu";
 import { categoryBreakdown, totalInRange } from "@/src/repos/transactionRepo";
 import { formatMoney } from "@/src/utils/format";
 import { MaterialIcons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useMemo, useState } from "react";
@@ -13,10 +14,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const screenWidth = Dimensions.get("window").width;
 const CHART_SIZE = screenWidth * 0.6;
 const HOLE_RATIO = 0.55;
+const ICON_SIZE = 25;
 
 type Tab = "Chi phí" | "Thu nhập";
 type RangeKind = "Ngày" | "Tuần" | "Tháng" | "Năm" | "Khoảng thời gian";
-
+const startOfDay = (d: Date) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+const todayEOD = () => {
+  const x = new Date();
+  x.setHours(23, 59, 59, 999);
+  return x;
+};
 function getRange(kind: RangeKind, anchor: Date) {
   const d = new Date(anchor);
   d.setHours(0, 0, 0, 0);
@@ -68,6 +79,13 @@ function getRange(kind: RangeKind, anchor: Date) {
   };
 }
 
+function isCurrentPeriod(kind: RangeKind, startSec: number, endSec: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const t = today.getTime() / 1000;
+  return t >= startSec && t < endSec;
+}
+
 const TrangChu = () => {
   const [activeTab, setActiveTab] = useState<Tab>("Chi phí");
   const [time, setTime] = useState<RangeKind>("Tuần");
@@ -77,12 +95,27 @@ const TrangChu = () => {
   const [listData, setListData] = useState<
     { category: string; percent: string; amount: number; color?: string }[]
   >([]);
+  const [rangeStart, setRangeStart] = useState<Date>(startOfDay(new Date()));
+  const [rangeEnd, setRangeEnd] = useState<Date>(startOfDay(new Date()));
+  const [showPicker, setShowPicker] = useState<null | "start" | "end">(null);
 
   const insets = useSafeAreaInsets();
-  const { startSec, endSec, label } = useMemo(
-    () => getRange(time, anchor),
-    [time, anchor]
-  );
+
+  const { startSec, endSec, label } = useMemo(() => {
+    if (time !== "Khoảng thời gian") return getRange(time, anchor);
+
+    const s = startOfDay(rangeStart);
+    const e = startOfDay(rangeEnd);
+    // endSec dạng exclusive: + 1 ngày
+    const eExclusive = new Date(e);
+    eExclusive.setDate(eExclusive.getDate() + 1);
+
+    return {
+      startSec: s.getTime() / 1000,
+      endSec: eExclusive.getTime() / 1000,
+      label: `${s.getDate()} thg ${s.getMonth() + 1} - ${e.getDate()} thg ${e.getMonth() + 1}`,
+    };
+  }, [time, anchor, rangeStart, rangeEnd]);
 
   const loadAll = React.useCallback(async () => {
     const type = activeTab === "Chi phí" ? "expense" : "income";
@@ -128,8 +161,13 @@ const TrangChu = () => {
     }, [loadAll])
   );
 
+  const atCurrentPeriod = isCurrentPeriod(time, startSec, endSec);
+  const canGoNext = !atCurrentPeriod;
+
   // điều hướng mốc thời gian
   const shiftAnchor = (dir: -1 | 1) => {
+    if (dir === 1 && !canGoNext) return; // đang ở kỳ hiện tại => không cho đi tới
+
     const a = new Date(anchor);
     if (time === "Ngày" || time === "Khoảng thời gian")
       a.setDate(a.getDate() + dir);
@@ -212,28 +250,76 @@ const TrangChu = () => {
             })}
           </View>
 
-          {/* Điều hướng mốc thời gian */}
-          <View className="flex-row justify-between px-4">
-            <TouchableOpacity onPress={() => shiftAnchor(-1)}>
-              <MaterialIcons
-                name="keyboard-arrow-left"
-                size={25}
-                color="#4B5563"
-              />
-            </TouchableOpacity>
+          {/* Bộ chọn cho "Khoảng thời gian" */}
+          {time === "Khoảng thời gian" ? (
+            <>
+              <View className="flex-row items-center justify-center gap-2 px-4 py-1">
+                <TouchableOpacity
+                  onPress={() => setShowPicker("start")}
+                  className="px-3 py-1 rounded-lg border border-gray-300"
+                >
+                  <Text>{`${rangeStart.getDate()} thg ${rangeStart.getMonth() + 1}`}</Text>
+                </TouchableOpacity>
+                <Text>-</Text>
+                <TouchableOpacity
+                  onPress={() => setShowPicker("end")}
+                  className="px-3 py-1 rounded-lg border border-gray-300"
+                >
+                  <Text>{`${rangeEnd.getDate()} thg ${rangeEnd.getMonth() + 1}`}</Text>
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity>
-              <Text className="text-primary text-lg font-bold">{label}</Text>
-            </TouchableOpacity>
+              {showPicker && (
+                <DateTimePicker
+                  value={showPicker === "start" ? rangeStart : rangeEnd}
+                  mode="date"
+                  display="calendar"
+                  maximumDate={todayEOD()} // chặn chọn tương lai
+                  onChange={(evt, date) => {
+                    setShowPicker(null);
+                    if (!date) return;
 
-            <TouchableOpacity onPress={() => shiftAnchor(1)}>
-              <MaterialIcons
-                name="keyboard-arrow-right"
-                size={25}
-                color="#4B5563"
-              />
-            </TouchableOpacity>
-          </View>
+                    if (showPicker === "start") {
+                      const s = startOfDay(date);
+                      // nếu start > end -> kéo end theo start
+                      if (s > rangeEnd) setRangeEnd(s);
+                      setRangeStart(s);
+                    } else {
+                      const e = startOfDay(date);
+                      // nếu end < start -> kéo start theo end
+                      if (e < rangeStart) setRangeStart(e);
+                      setRangeEnd(e);
+                    }
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            // Điều hướng mốc thời gian cho các chế độ còn lại (Ngày/Tuần/Tháng/Năm)
+            <View className="flex-row justify-between px-4 items-center">
+              <TouchableOpacity onPress={() => shiftAnchor(-1)}>
+                <MaterialIcons
+                  name="keyboard-arrow-left"
+                  size={ICON_SIZE}
+                  color="#4B5563"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity>
+                <Text className="text-primary text-lg font-bold">{label}</Text>
+              </TouchableOpacity>
+              {canGoNext ? (
+                <TouchableOpacity onPress={() => shiftAnchor(1)}>
+                  <MaterialIcons
+                    name="keyboard-arrow-right"
+                    size={ICON_SIZE}
+                    color="#4B5563"
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View style={{ width: ICON_SIZE, height: ICON_SIZE }} />
+              )}
+            </View>
+          )}
 
           {/* Biểu đồ hình tròn */}
           <View className="w-full items-center">
