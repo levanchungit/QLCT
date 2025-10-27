@@ -1,5 +1,6 @@
 // app/_layout.tsx
 import { openDb } from "@/src/db";
+import { UserProvider, useUser } from "@/src/userContext";
 import {
   Feather,
   MaterialCommunityIcons,
@@ -163,6 +164,15 @@ function DrawerItemRow({
 function CustomDrawerContent(props: any) {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { user, logout, refresh } = useUser();
+
+  useEffect(() => {
+    const unsub = props.navigation.addListener("drawerOpen", () => {
+      refresh();
+    });
+    return unsub;
+  }, [props.navigation, refresh]);
+
   const navigate = (route?: string) => {
     if (!route) return;
     props.navigation.closeDrawer();
@@ -170,6 +180,16 @@ function CustomDrawerContent(props: any) {
   };
   const isActive = (route?: string) =>
     route ? pathname === `/${route}` : false;
+
+  const handleAuthPress = async () => {
+    if (user) {
+      props.navigation.closeDrawer();
+      router.push("/main/profile");
+    } else {
+      props.navigation.closeDrawer();
+      router.push("/auth");
+    }
+  };
 
   return (
     // Fullscreen: không inset phía trên, chỉ tôn trọng bottom cho thanh điều hướng
@@ -182,10 +202,7 @@ function CustomDrawerContent(props: any) {
         <View className="px-5 pt-4 pb-3 border-b border-white/40">
           <TouchableOpacity
             className="flex-row items-center"
-            onPress={() => {
-              props.navigation.closeDrawer();
-              router.push("/auth"); // điều hướng bằng path
-            }}
+            onPress={handleAuthPress}
           >
             <View className="w-16 h-16 rounded-full border border-white/50 items-center justify-center mr-4">
               <MaterialCommunityIcons
@@ -194,7 +211,9 @@ function CustomDrawerContent(props: any) {
                 color="#EAF5EE"
               />
             </View>
-            <Text className="text-white text-lg font-semibold">Đăng ký</Text>
+            <Text className="text-white text-lg font-semibold">
+              {user ? user.username : "Đăng nhập / Đăng ký"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -247,19 +266,21 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Drawer
-        screenOptions={{
-          headerShown: false,
-          drawerStyle: { width: "82%", backgroundColor: "transparent" },
-          overlayColor: "rgba(0,0,0,0.35)",
-        }}
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
-      >
-        <Drawer.Screen name="index" options={{ title: "Trang chủ" }} />
-        <Drawer.Screen name="taiKhoan" options={{ title: "Tài khoản" }} />
-        <Drawer.Screen name="danhMuc" options={{ title: "Danh mục" }} />
-        <Drawer.Screen name="auth" options={{ title: "Đăng nhập" }} />
-      </Drawer>
+      <UserProvider>
+        <Drawer
+          screenOptions={{
+            headerShown: false,
+            drawerStyle: { width: "82%", backgroundColor: "transparent" },
+            overlayColor: "rgba(0,0,0,0.35)",
+          }}
+          drawerContent={(props) => <CustomDrawerContent {...props} />}
+        >
+          <Drawer.Screen name="index" options={{ title: "Trang chủ" }} />
+          <Drawer.Screen name="taiKhoan" options={{ title: "Tài khoản" }} />
+          <Drawer.Screen name="danhMuc" options={{ title: "Danh mục" }} />
+          <Drawer.Screen name="auth" options={{ title: "Đăng nhập" }} />
+        </Drawer>
+      </UserProvider>
     </SafeAreaProvider>
   );
 }

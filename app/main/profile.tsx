@@ -1,23 +1,26 @@
 import HeaderMenu from "@/components/HeaderMenu";
+import { useUser } from "@/src/userContext";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
 
 export default function Profile() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    id?: string;
-    username?: string;
-    email?: string;
-  }>();
+  const { user, logout } = useUser(); // ✅ lấy user và hàm logout từ context
 
-  const user = {
-    name: params.username || "Không rõ",
-    email: params.email || "Không có email",
-    id: params.id || "N/A",
+  const displayUser = {
+    name: user?.username || "Không rõ",
+    email: user?.email || "Không có email",
+    id: user?.id || "N/A",
     avatar:
       "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=640",
   };
+
+  async function handleLogout() {
+    await logout(); // xóa session và reset context
+    Alert.alert("Đã đăng xuất");
+    router.replace("/main"); // chuyển về màn đăng nhập
+  }
 
   return (
     <View className="flex-1 bg-light">
@@ -29,9 +32,10 @@ export default function Profile() {
       />
 
       <View className="px-6 mt-6 items-center">
+        {/* Avatar */}
         <View className="relative">
           <Image
-            source={{ uri: user.avatar }}
+            source={{ uri: displayUser.avatar }}
             className="w-40 h-40 rounded-full border-4 border-white"
           />
           <TouchableOpacity className="absolute bottom-3 right-3 bg-primaryDark p-2 rounded-full">
@@ -39,13 +43,14 @@ export default function Profile() {
           </TouchableOpacity>
         </View>
 
+        {/* Thông tin user */}
         <View className="mt-10 w-full space-y-4">
           <View className="flex-row items-center bg-white rounded-xl p-4 border border-gray-100">
             <MaterialCommunityIcons name="account" size={24} color="#1877F2" />
             <View className="ml-3">
               <Text className="text-gray-500 text-xs">Tên</Text>
               <Text className="text-gray-800 text-base font-medium">
-                {user.name}
+                {displayUser.name}
               </Text>
             </View>
           </View>
@@ -59,19 +64,20 @@ export default function Profile() {
             <View className="ml-3">
               <Text className="text-gray-500 text-xs">Địa chỉ email</Text>
               <Text className="text-gray-800 text-base font-medium">
-                {user.email}
+                {displayUser.email}
               </Text>
             </View>
           </View>
 
           <View className="flex-row items-center bg-white rounded-xl p-4 border border-gray-100">
             <MaterialIcons name="badge" size={24} color="#9CA3AF" />
-            <Text className="ml-3 text-gray-500">ID: {user.id}</Text>
+            <Text className="ml-3 text-gray-500">ID: {displayUser.id}</Text>
           </View>
         </View>
 
+        {/* Nút đăng xuất */}
         <TouchableOpacity
-          onPress={() => router.replace("/auth/login")}
+          onPress={handleLogout}
           className="flex-row items-center self-end mt-8 bg-green-100 px-4 py-2 rounded-xl"
         >
           <Text className="text-primaryDark font-semibold mr-1">Thoát</Text>

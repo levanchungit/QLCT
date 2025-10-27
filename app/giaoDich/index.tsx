@@ -22,7 +22,7 @@ function groupByDate(rows: TxDetailRow[]) {
   return groups;
 }
 
-export default function ChiTietGiaoDich() {
+export default function GiaoDich() {
   const { category } = useLocalSearchParams<{ category: string }>();
   const [items, setItems] = useState<TxDetailRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -138,7 +138,7 @@ export default function ChiTietGiaoDich() {
 
       <View className="justify-center items-center">
         <TouchableOpacity
-          onPress={() => console.log("click add")}
+          onPress={() => router.push("/giaoDich/chinhSuaGiaoDich")}
           className="absolute bottom-12 bg-button rounded-full p-4 shadow-lg"
         >
           <MaterialIcons name="add" size={30} />
