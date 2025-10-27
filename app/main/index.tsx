@@ -1,12 +1,17 @@
 // app/trangChu.tsx
 import HeaderMenu from "@/components/HeaderMenu";
+import { openDb } from "@/src/db";
 import { categoryBreakdown, totalInRange } from "@/src/repos/transactionRepo";
 import { formatMoney } from "@/src/utils/format";
-import { MaterialIcons } from "@expo/vector-icons";
+import {
+  FontAwesome5,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions, Text, TouchableOpacity, View } from "react-native";
 import { PieChart } from "react-native-chart-kit";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,8 +21,22 @@ const CHART_SIZE = screenWidth * 0.6;
 const HOLE_RATIO = 0.55;
 const ICON_SIZE = 25;
 
+const normalizeIcon = (raw?: string | null) =>
+  raw ? (raw.includes(":") ? raw : `mc:${raw}`) : "mi:category";
+const renderIconByLib = (packed: string, color: string, size = 18) => {
+  const [lib, name] = packed.split(":");
+  if (lib === "mc")
+    return (
+      <MaterialCommunityIcons name={name as any} size={size} color={color} />
+    );
+  if (lib === "fa5")
+    return <FontAwesome5 name={name as any} size={size} color={color} />;
+  return <MaterialIcons name={name as any} size={size} color={color} />; // "mi"
+};
+
 type Tab = "Chi phí" | "Thu nhập";
 type RangeKind = "Ngày" | "Tuần" | "Tháng" | "Năm" | "Khoảng thời gian";
+
 const startOfDay = (d: Date) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -28,6 +47,7 @@ const todayEOD = () => {
   x.setHours(23, 59, 59, 999);
   return x;
 };
+
 function getRange(kind: RangeKind, anchor: Date) {
   const d = new Date(anchor);
   d.setHours(0, 0, 0, 0);
@@ -49,7 +69,9 @@ function getRange(kind: RangeKind, anchor: Date) {
     return {
       startSec: startDate.getTime() / 1000,
       endSec: endDate.getTime() / 1000,
-      label: `${startDate.getDate()} thg ${startDate.getMonth() + 1} - ${endDate.getDate()} thg ${endDate.getMonth() + 1}`,
+      label: `${startDate.getDate()} thg ${startDate.getMonth() + 1} - ${endDate.getDate()} thg ${
+        endDate.getMonth() + 1
+      }`,
     };
   }
   if (kind === "Tháng") {
@@ -70,7 +92,7 @@ function getRange(kind: RangeKind, anchor: Date) {
       label: `${d.getFullYear()}`,
     };
   }
-  // "Khoảng thời gian" – tạm như Ngày
+  // "Khoảng thời gian": range sẽ tính từ rangeStart/rangeEnd ở useMemo
   const start = d.getTime() / 1000;
   return {
     startSec: start,
@@ -79,7 +101,8 @@ function getRange(kind: RangeKind, anchor: Date) {
   };
 }
 
-function isCurrentPeriod(kind: RangeKind, startSec: number, endSec: number) {
+// hôm nay có nằm trong khoảng đang hiển thị không?
+function isCurrentPeriod(startSec: number, endSec: number) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const t = today.getTime() / 1000;
@@ -90,25 +113,36 @@ const TrangChu = () => {
   const [activeTab, setActiveTab] = useState<Tab>("Chi phí");
   const [time, setTime] = useState<RangeKind>("Tuần");
   const [anchor, setAnchor] = useState<Date>(new Date());
-  const [total, setTotal] = useState<number>(0);
+
+  const [headerTotal, setHeaderTotal] = useState(0); // tổng số dư tài khoản (header)
+  const [periodTotal, setPeriodTotal] = useState<number>(0); // tổng theo kỳ thời gian
+
   const [chartData, setChartData] = useState<any[]>([]);
   const [listData, setListData] = useState<
-    { category: string; percent: string; amount: number; color?: string }[]
+    {
+      category: string;
+      percent: string;
+      amount: number;
+      color?: string;
+      icon?: string;
+    }[]
   >([]);
+
+  // range cho "Khoảng thời gian"
   const [rangeStart, setRangeStart] = useState<Date>(startOfDay(new Date()));
   const [rangeEnd, setRangeEnd] = useState<Date>(startOfDay(new Date()));
   const [showPicker, setShowPicker] = useState<null | "start" | "end">(null);
 
   const insets = useSafeAreaInsets();
 
+  // Tính range hiển thị
   const { startSec, endSec, label } = useMemo(() => {
     if (time !== "Khoảng thời gian") return getRange(time, anchor);
 
     const s = startOfDay(rangeStart);
     const e = startOfDay(rangeEnd);
-    // endSec dạng exclusive: + 1 ngày
     const eExclusive = new Date(e);
-    eExclusive.setDate(eExclusive.getDate() + 1);
+    eExclusive.setDate(eExclusive.getDate() + 1); // end exclusive
 
     return {
       startSec: s.getTime() / 1000,
@@ -117,10 +151,24 @@ const TrangChu = () => {
     };
   }, [time, anchor, rangeStart, rangeEnd]);
 
-  const loadAll = React.useCallback(async () => {
+  // Tổng số dư tài khoản cho Header (không phụ thuộc thời gian)
+  const loadHeaderTotal = useCallback(async () => {
+    const db = await openDb();
+    const rows = await db.getAllAsync<{
+      include_in_total: number;
+      balance_cached: number;
+    }>(`SELECT include_in_total, balance_cached FROM accounts`);
+    const sum = rows
+      .filter((r) => r.include_in_total === 1)
+      .reduce((s, r) => s + (r.balance_cached || 0), 0);
+    setHeaderTotal(sum);
+  }, []);
+
+  // Dữ liệu theo kỳ (chart + list)
+  const loadPeriodData = useCallback(async () => {
     const type = activeTab === "Chi phí" ? "expense" : "income";
     const sum = await totalInRange(startSec, endSec, type);
-    setTotal(sum);
+    setPeriodTotal(sum);
 
     const rows = await categoryBreakdown(startSec, endSec, type);
     const grand = rows.reduce((s, r) => s + (r.total || 0), 0) || 1;
@@ -151,22 +199,30 @@ const TrangChu = () => {
         percent: `${Math.round((r.total / grand) * 100)}%`,
         amount: r.total,
         color: r.color ?? palette[i % palette.length],
+        icon: normalizeIcon((r as any).icon), // đảm bảo có icon nếu cột tồn tại
       }))
     );
   }, [activeTab, startSec, endSec]);
 
+  // Khi vào màn / refocus: refresh cả headerTotal và dữ liệu kỳ
   useFocusEffect(
     useCallback(() => {
-      loadAll();
-    }, [loadAll])
+      loadHeaderTotal();
+      loadPeriodData();
+    }, [loadHeaderTotal, loadPeriodData])
   );
 
-  const atCurrentPeriod = isCurrentPeriod(time, startSec, endSec);
+  // Khi thay đổi tab hoặc mốc thời gian: reload dữ liệu kỳ
+  useEffect(() => {
+    loadPeriodData();
+  }, [loadPeriodData]);
+
+  const atCurrentPeriod = isCurrentPeriod(startSec, endSec);
   const canGoNext = !atCurrentPeriod;
 
-  // điều hướng mốc thời gian
+  // Điều hướng mốc thời gian (không cho đi tới tương lai)
   const shiftAnchor = (dir: -1 | 1) => {
-    if (dir === 1 && !canGoNext) return; // đang ở kỳ hiện tại => không cho đi tới
+    if (dir === 1 && !canGoNext) return;
 
     const a = new Date(anchor);
     if (time === "Ngày" || time === "Khoảng thời gian")
@@ -190,7 +246,7 @@ const TrangChu = () => {
           <Text className="text-xl text-white">Tổng cộng</Text>
           <TouchableOpacity>
             <Text className="text-white font-bold text-2xl">
-              {formatMoney(total)}
+              {formatMoney(headerTotal)}
             </Text>
           </TouchableOpacity>
         </View>
@@ -207,10 +263,14 @@ const TrangChu = () => {
               <TouchableOpacity
                 key={item}
                 onPress={() => setActiveTab(item)}
-                className={`w-[30%] px-2 py-0.5 border-b-2 ${isActive ? "border-b-white" : "border-b-transparent"}`}
+                className={`w-[30%] px-2 py-0.5 border-b-2 ${
+                  isActive ? "border-b-white" : "border-b-transparent"
+                }`}
               >
                 <Text
-                  className={`text-center font-bold text-lg ${isActive ? "text-white" : "text-gray-300"}`}
+                  className={`text-center font-bold text-lg ${
+                    isActive ? "text-white" : "text-gray-300"
+                  }`}
                 >
                   {item.toUpperCase()}
                 </Text>
@@ -250,7 +310,7 @@ const TrangChu = () => {
             })}
           </View>
 
-          {/* Bộ chọn cho "Khoảng thời gian" */}
+          {/* Khoảng thời gian: 2 nút chọn ngày, ẩn mũi tên */}
           {time === "Khoảng thời gian" ? (
             <>
               <View className="flex-row items-center justify-center gap-2 px-4 py-1">
@@ -281,12 +341,10 @@ const TrangChu = () => {
 
                     if (showPicker === "start") {
                       const s = startOfDay(date);
-                      // nếu start > end -> kéo end theo start
-                      if (s > rangeEnd) setRangeEnd(s);
+                      if (s > rangeEnd) setRangeEnd(s); // auto hợp lệ
                       setRangeStart(s);
                     } else {
                       const e = startOfDay(date);
-                      // nếu end < start -> kéo start theo end
                       if (e < rangeStart) setRangeStart(e);
                       setRangeEnd(e);
                     }
@@ -295,7 +353,7 @@ const TrangChu = () => {
               )}
             </>
           ) : (
-            // Điều hướng mốc thời gian cho các chế độ còn lại (Ngày/Tuần/Tháng/Năm)
+            // Các chế độ còn lại: mũi tên trái/label/mũi tên phải (ẩn > nếu ở kỳ hiện tại)
             <View className="flex-row justify-between px-4 items-center">
               <TouchableOpacity onPress={() => shiftAnchor(-1)}>
                 <MaterialIcons
@@ -304,9 +362,11 @@ const TrangChu = () => {
                   color="#4B5563"
                 />
               </TouchableOpacity>
+
               <TouchableOpacity>
                 <Text className="text-primary text-lg font-bold">{label}</Text>
               </TouchableOpacity>
+
               {canGoNext ? (
                 <TouchableOpacity onPress={() => shiftAnchor(1)}>
                   <MaterialIcons
@@ -350,7 +410,7 @@ const TrangChu = () => {
                 }}
               />
 
-              {/* Lỗ giữa + tổng cộng */}
+              {/* Lỗ giữa + tổng theo kỳ */}
               <View
                 style={{
                   position: "absolute",
@@ -363,7 +423,7 @@ const TrangChu = () => {
                 }}
               >
                 <Text className="text-gray-800 font-bold text-xl">
-                  {formatMoney(total)}
+                  {formatMoney(periodTotal)}
                 </Text>
               </View>
             </View>
@@ -384,7 +444,7 @@ const TrangChu = () => {
         <View className="w-full gap-2">
           {listData.map((item) => (
             <TouchableOpacity
-              key={item.category}
+              key={`${item.category}-${item.amount}`}
               onPress={() =>
                 router.push({
                   pathname: "/giaoDich",
@@ -398,9 +458,11 @@ const TrangChu = () => {
               className="flex-row w-full p-2 bg-white rounded-xl shadow items-center"
             >
               <View
-                className="w-10 h-10 rounded-full mr-3"
+                className="w-10 h-10 rounded-full mr-3 items-center justify-center"
                 style={{ backgroundColor: item.color ?? "#e5e7eb" }}
-              />
+              >
+                {item.icon ? renderIconByLib(item.icon, "#fff", 18) : null}
+              </View>
               <Text className="w-[40%] text-left font-bold text-gray-800">
                 {item.category}
               </Text>
