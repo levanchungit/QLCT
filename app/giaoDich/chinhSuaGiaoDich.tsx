@@ -10,9 +10,11 @@ import React, {
 } from "react";
 import {
   Alert,
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -198,71 +200,106 @@ const ChinhSuaGiaoDich = () => {
   }, []);
 
   const insets = useSafeAreaInsets();
-  const HEADER_OFFSET = insets.top + 72;
+  const BASE_BOTTOM = insets.bottom; // đáy khi không có bàn phím
+  const btnBottom = useRef(new Animated.Value(BASE_BOTTOM)).current;
+
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const onShow = (e: any) => {
+      const h = e?.endCoordinates?.height ?? 0;
+      Animated.timing(btnBottom, {
+        toValue: h + 50, // đặt nút ngay trên bàn phím
+        duration: 180,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const onHide = () => {
+      Animated.timing(btnBottom, {
+        toValue: BASE_BOTTOM, // về đáy khi không có bàn phím
+        duration: 180,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const s1 = Keyboard.addListener(showEvt, onShow);
+    const s2 = Keyboard.addListener(hideEvt, onHide);
+    return () => {
+      s1.remove();
+      s2.remove();
+    };
+  }, [btnBottom, BASE_BOTTOM]);
 
   return (
     <View className="flex-1 bg-background">
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: "transparent" }}
-        keyboardVerticalOffset={HEADER_OFFSET}
-      >
-        {/* HEADER */}
-        <View className="bg-primary rounded-b-[40px] pb-6 pt-12">
-          <View className="items-center">
-            <TouchableOpacity
-              className="absolute left-4 top-3"
-              onPress={() => router.back()}
-            >
-              <MaterialIcons name="arrow-back" size={25} color="white" />
-            </TouchableOpacity>
-            <Text className="text-center text-xl text-white font-bold">
-              {id ? "Chỉnh sửa giao dịch" : "Tạo giao dịch"}
-            </Text>
-          </View>
-
-          {/* Tabs */}
-          <View className="mt-6 px-4">
-            <View className="flex-row w-full justify-around">
-              {[
-                { key: "expense", label: "CHI PHÍ" },
-                { key: "income", label: "THU NHẬP" },
-              ].map((tab) => (
-                <TouchableOpacity
-                  key={tab.key}
-                  onPress={() => {
-                    setActiveTab(tab.key as any);
-                    // Nếu chuyển tab khác, bỏ chọn category để tránh mismatch
-                    setSelectedCategory(null);
-                  }}
-                  className={`border-b-2 ${
-                    activeTab === tab.key
-                      ? "border-white"
-                      : "border-transparent"
-                  }`}
-                >
-                  <Text
-                    className={`px-6 py-1 font-bold ${
-                      activeTab === tab.key ? "text-white" : "text-gray-200"
-                    }`}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+      {/* HEADER (Cố định, không cuộn) */}
+      <View className="bg-primary rounded-b-[40px] pb-6 pt-12">
+        <View className="items-center">
+          <TouchableOpacity
+            className="absolute left-4 top-3"
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={25} color="white" />
+          </TouchableOpacity>
+          <Text className="text-center text-xl text-white font-bold">
+            {id ? "Chỉnh sửa giao dịch" : "Tạo giao dịch"}
+          </Text>
         </View>
 
+        {/* Tabs */}
+        <View className="mt-6 px-4">
+          <View className="flex-row w-full justify-around">
+            {[
+              { key: "expense", label: "CHI PHÍ" },
+              { key: "income", label: "THU NHẬP" },
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => {
+                  setActiveTab(tab.key as any);
+                  setSelectedCategory(null);
+                }}
+                className={`border-b-2 ${
+                  activeTab === tab.key ? "border-white" : "border-transparent"
+                }`}
+              >
+                <Text
+                  className={`px-6 py-1 font-bold ${
+                    activeTab === tab.key ? "text-white" : "text-gray-200"
+                  }`}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* BODY có thể cuộn */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={insets.top + 72}
+      >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          {/* BODY */}
           <ScrollView
             className="flex-1"
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingBottom: BASE_BOTTOM + 120, // chừa chỗ cho nút Lưu
+            }}
           >
+            {/* ==== BODY ==== */}
             {/* SỐ TIỀN */}
-            <View className="flex-row justify-center items-center gap-4">
+            <View className="flex-row justify-center items-center gap-4 mt-6">
               <View className="w-[50%] max-w-[50%]">
                 <TextInput
                   className="text-black text-center text-2xl border-b-2 border-b-gray-400"
@@ -281,11 +318,8 @@ const ChinhSuaGiaoDich = () => {
             </View>
 
             {/* TÀI KHOẢN */}
-            <View className="mt-4 gap-2">
-              <TouchableOpacity
-                className="mt-6"
-                onPress={() => setShowAccountModal(true)}
-              >
+            <View className="mt-6 gap-2">
+              <TouchableOpacity onPress={() => setShowAccountModal(true)}>
                 <Text className="text-text text-sm">Tài khoản</Text>
                 {selectedAccount ? (
                   <View className="flex-row items-center mt-1">
@@ -320,11 +354,9 @@ const ChinhSuaGiaoDich = () => {
                   Bạn phải chọn một danh mục
                 </Text>
               )}
-
               <View className="flex-row flex-wrap justify-center gap-x-6 gap-y-4">
                 {displayed.map((cat) => {
                   const isSelected = selectedCategory?.id === cat.id;
-
                   return (
                     <TouchableOpacity
                       key={cat.id}
@@ -332,7 +364,6 @@ const ChinhSuaGiaoDich = () => {
                       activeOpacity={0.9}
                       className="w-[28%] items-center p-2"
                       style={{
-                        // ô ngoài: chỉ có nền & bo góc khi được chọn
                         backgroundColor: isSelected ? "#63B3ED" : "transparent",
                         borderRadius: isSelected ? 16 : 0,
                         shadowColor: "#000",
@@ -356,7 +387,6 @@ const ChinhSuaGiaoDich = () => {
                       >
                         {renderIcon(cat.icon, 28)}
                       </View>
-
                       <Text
                         className={`mt-2 text-[13px] font-semibold text-center ${
                           isSelected ? "text-white" : "text-black"
@@ -368,7 +398,6 @@ const ChinhSuaGiaoDich = () => {
                     </TouchableOpacity>
                   );
                 })}
-
                 {Array.from({ length: fillers }).map((_, i) => (
                   <View
                     key={`spacer-${i}`}
@@ -441,11 +470,9 @@ const ChinhSuaGiaoDich = () => {
               </Text>
             </View>
 
-            {/* Ảnh */}
+            {/* ẢNH */}
             <View className="mt-2">
-              <View>
-                <Text className="text-text text-sm">Ảnh</Text>
-              </View>
+              <Text className="text-text text-sm">Ảnh</Text>
               <View className="flex-wrap flex-row gap-2 mt-2">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <TouchableOpacity
@@ -463,17 +490,28 @@ const ChinhSuaGiaoDich = () => {
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-      {/* NÚT LƯU */}
-      <View className="justify-center items-center">
+
+      {/* ✅ NÚT LƯU: dính trên bàn phím */}
+      <Animated.View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: btnBottom,
+          alignItems: "center",
+        }}
+      >
         <TouchableOpacity
           onPress={handleSaveTransaction}
-          className="absolute bottom-12 w-[70%] bg-button rounded-full p-4 shadow-lg"
+          className="w-[70%] bg-button rounded-full p-4 shadow-lg"
+          activeOpacity={0.85}
         >
           <Text className="text-center text-black font-semibold">Lưu</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
-      {/* MODAL CHỌN TÀI KHOẢN */}
+      {/* MODAL CHỌN TÀI KHOẢN giữ nguyên */}
       <Modal visible={showAccountModal} animationType="fade" transparent>
         <Pressable
           className="flex-1 bg-black/40"
