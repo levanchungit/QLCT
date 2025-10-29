@@ -83,34 +83,6 @@ const TOP_ITEMS: MenuItem[] = [
     iconName: "cog-outline",
     route: "caiDat",
   },
-  {
-    key: "ads",
-    label: "Tắt quảng cáo",
-    iconLib: "mci",
-    iconName: "alpha-a-circle-outline",
-    route: "ads",
-  },
-  {
-    key: "share",
-    label: "Chia sẻ với bạn bè",
-    iconLib: "mci",
-    iconName: "share-variant",
-    route: "share",
-  },
-  {
-    key: "rate",
-    label: "Đánh giá ứng dụng",
-    iconLib: "mci",
-    iconName: "star-outline",
-    route: "rate",
-  },
-  {
-    key: "support",
-    label: "Liên hệ với nhóm hỗ trợ",
-    iconLib: "mci",
-    iconName: "email-outline",
-    route: "support",
-  },
 ];
 
 // icon helper

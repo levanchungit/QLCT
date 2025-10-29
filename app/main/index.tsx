@@ -12,15 +12,29 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions, Text, TouchableOpacity, View } from "react-native";
-import { PieChart } from "react-native-chart-kit";
+import {
+  Dimensions,
+  Platform,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View,
+} from "react-native";
+import { PieChart } from "react-native-gifted-charts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 const screenWidth = Dimensions.get("window").width;
 const CHART_SIZE = screenWidth * 0.6;
 const HOLE_RATIO = 0.55;
 const ICON_SIZE = 25;
+const isFabric = !!global?.nativeFabricUIManager;
 
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental &&
+  !isFabric
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 const normalizeIcon = (raw?: string | null) =>
   raw ? (raw.includes(":") ? raw : `mc:${raw}`) : "mi:category";
 const renderIconByLib = (packed: string, color: string, size = 18) => {
@@ -184,13 +198,16 @@ const TrangChu = () => {
     ];
 
     setChartData(
-      rows.map((r, i) => ({
-        name: r.name ?? "Khác",
-        population: r.total,
-        color: r.color ?? palette[i % palette.length],
-        legendFontColor: "#7F7F7F",
-        legendFontSize: 13,
-      }))
+      rows
+        .filter((r) => (r.total || 0) > 0) // tránh lát 0 gây rối
+        .map((r, i) => {
+          const pct = grand ? Math.round((r.total / grand) * 100) : 0;
+          return {
+            value: r.total,
+            color: r.color ?? palette[i % palette.length],
+            text: `${pct}%`, // <-- label phần trăm
+          };
+        })
     );
 
     setListData(
@@ -388,51 +405,71 @@ const TrangChu = () => {
                 width: CHART_SIZE,
                 height: CHART_SIZE,
                 alignSelf: "center",
-                position: "relative",
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <PieChart
-                data={chartData}
-                width={CHART_SIZE}
-                height={CHART_SIZE}
-                accessor="population"
-                hasLegend={false}
-                backgroundColor="transparent"
-                paddingLeft="0"
-                center={[CHART_SIZE / 4, 0]}
-                chartConfig={{
-                  backgroundColor: "transparent",
-                  backgroundGradientFrom: "transparent",
-                  backgroundGradientTo: "transparent",
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                }}
-              />
-
-              {/* Lỗ giữa + tổng theo kỳ */}
-              <View
-                style={{
-                  position: "absolute",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: CHART_SIZE * HOLE_RATIO,
-                  height: CHART_SIZE * HOLE_RATIO,
-                  borderRadius: (CHART_SIZE * HOLE_RATIO) / 2,
-                  backgroundColor: "#fff",
-                }}
-              >
-                <Text className="text-gray-800 font-bold text-xl">
-                  {formatMoney(periodTotal)}
-                </Text>
-              </View>
+              {chartData.length > 0 ? (
+                <PieChart
+                  data={chartData}
+                  donut
+                  radius={CHART_SIZE / 2}
+                  innerRadius={(CHART_SIZE * HOLE_RATIO) / 2}
+                  showText
+                  textColor="white"
+                  textSize={14}
+                  fontWeight="bold"
+                  strokeWidth={4}
+                  strokeColor="#333"
+                  innerCircleBorderWidth={4}
+                  innerCircleBorderColor="#333"
+                  showGradient
+                  centerLabelComponent={() => (
+                    <View style={{ alignItems: "center" }}>
+                      <Text className="text-gray-800 font-bold text-xl">
+                        {formatMoney(periodTotal)}
+                      </Text>
+                    </View>
+                  )}
+                />
+              ) : (
+                // Placeholder khi không có dữ liệu, tránh gọi PieChart với mảng rỗng
+                <View
+                  style={{
+                    width: CHART_SIZE,
+                    height: CHART_SIZE,
+                    borderRadius: CHART_SIZE / 2,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: CHART_SIZE * HOLE_RATIO,
+                      height: CHART_SIZE * HOLE_RATIO,
+                      borderRadius: (CHART_SIZE * HOLE_RATIO) / 2,
+                      backgroundColor: "#fff",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text className="text-gray-400">Chưa có dữ liệu</Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
 
           {/* Nút thêm (FAB) */}
           <TouchableOpacity
             onPress={() => {
-              router.push({ pathname: "/giaoDich/chinhSuaGiaoDich" });
+              router.push({
+                pathname: "/giaoDich/chinhSuaGiaoDich",
+                params: {
+                  type: activeTab === "Chi phí" ? "expense" : "income",
+                },
+              });
             }}
             className="absolute bottom-4 right-4 bg-primary rounded-full p-4 shadow-lg"
           >
