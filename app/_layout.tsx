@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { PaperProvider } from "react-native-paper";
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -238,21 +239,23 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <UserProvider>
-        <Drawer
-          screenOptions={{
-            headerShown: false,
-            drawerStyle: { width: "82%", backgroundColor: "transparent" },
-            overlayColor: "rgba(0,0,0,0.35)",
-          }}
-          drawerContent={(props) => <CustomDrawerContent {...props} />}
-        >
-          <Drawer.Screen name="index" options={{ title: "Trang chủ" }} />
-          <Drawer.Screen name="taiKhoan" options={{ title: "Tài khoản" }} />
-          <Drawer.Screen name="danhMuc" options={{ title: "Danh mục" }} />
-          <Drawer.Screen name="auth" options={{ title: "Đăng nhập" }} />
-        </Drawer>
-      </UserProvider>
+      <PaperProvider>
+        <UserProvider>
+          <Drawer
+            screenOptions={{
+              headerShown: false,
+              drawerStyle: { width: "82%", backgroundColor: "transparent" },
+              overlayColor: "rgba(0,0,0,0.35)",
+            }}
+            drawerContent={(props) => <CustomDrawerContent {...props} />}
+          >
+            <Drawer.Screen name="index" options={{ title: "Trang chủ" }} />
+            <Drawer.Screen name="taiKhoan" options={{ title: "Tài khoản" }} />
+            <Drawer.Screen name="danhMuc" options={{ title: "Danh mục" }} />
+            <Drawer.Screen name="auth" options={{ title: "Đăng nhập" }} />
+          </Drawer>
+        </UserProvider>
+      </PaperProvider>
     </SafeAreaProvider>
   );
 }

@@ -1,4 +1,3 @@
-// app/trangChu.tsx
 import HeaderMenu from "@/components/HeaderMenu";
 import { openDb } from "@/src/db";
 import { categoryBreakdown, totalInRange } from "@/src/repos/transactionRepo";
@@ -8,33 +7,36 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import "dayjs/locale/vi";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Dimensions,
-  Platform,
-  Text,
-  TouchableOpacity,
-  UIManager,
-  View,
-} from "react-native";
+import { Dimensions, Text, TouchableOpacity, View } from "react-native";
+import CalendarPicker from "react-native-calendar-picker";
 import { PieChart } from "react-native-gifted-charts";
+import { Button, Modal, Portal } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+const VI_MONTHS = [
+  "tháng 1",
+  "tháng 2",
+  "tháng 3",
+  "tháng 4",
+  "tháng 5",
+  "tháng 6",
+  "tháng 7",
+  "tháng 8",
+  "tháng 9",
+  "tháng 10",
+  "tháng 11",
+  "tháng 12",
+];
+const VI_WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
 const screenWidth = Dimensions.get("window").width;
 const CHART_SIZE = screenWidth * 0.6;
 const HOLE_RATIO = 0.55;
 const ICON_SIZE = 25;
-const isFabric = !!global?.nativeFabricUIManager;
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental &&
-  !isFabric
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 const normalizeIcon = (raw?: string | null) =>
   raw ? (raw.includes(":") ? raw : `mc:${raw}`) : "mi:category";
 const renderIconByLib = (packed: string, color: string, size = 18) => {
@@ -54,11 +56,6 @@ type RangeKind = "Ngày" | "Tuần" | "Tháng" | "Năm" | "Khoảng thời gian"
 const startOfDay = (d: Date) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
-  return x;
-};
-const todayEOD = () => {
-  const x = new Date();
-  x.setHours(23, 59, 59, 999);
   return x;
 };
 
@@ -115,7 +112,6 @@ function getRange(kind: RangeKind, anchor: Date) {
   };
 }
 
-// hôm nay có nằm trong khoảng đang hiển thị không?
 function isCurrentPeriod(startSec: number, endSec: number) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -145,10 +141,19 @@ const TrangChu = () => {
   // range cho "Khoảng thời gian"
   const [rangeStart, setRangeStart] = useState<Date>(startOfDay(new Date()));
   const [rangeEnd, setRangeEnd] = useState<Date>(startOfDay(new Date()));
-  const [showPicker, setShowPicker] = useState<null | "start" | "end">(null);
-
+  const [tempStart, setTempStart] = useState<Date | null>(rangeStart);
+  const [tempEnd, setTempEnd] = useState<Date | null>(rangeEnd);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [tempAnchor, setTempAnchor] = useState<Date | null>(anchor);
+  const startOfWeekMon = (d: Date) => {
+    const x = startOfDay(d);
+    const wd = (x.getDay() + 6) % 7;
+    x.setDate(x.getDate() - wd);
+    return x;
+  };
   const insets = useSafeAreaInsets();
 
+  const fmt = (d: Date) => `${d.getDate()} thg ${d.getMonth() + 1}`;
   // Tính range hiển thị
   const { startSec, endSec, label } = useMemo(() => {
     if (time !== "Khoảng thời gian") return getRange(time, anchor);
@@ -156,7 +161,7 @@ const TrangChu = () => {
     const s = startOfDay(rangeStart);
     const e = startOfDay(rangeEnd);
     const eExclusive = new Date(e);
-    eExclusive.setDate(eExclusive.getDate() + 1); // end exclusive
+    eExclusive.setDate(eExclusive.getDate() + 1);
 
     return {
       startSec: s.getTime() / 1000,
@@ -165,7 +170,6 @@ const TrangChu = () => {
     };
   }, [time, anchor, rangeStart, rangeEnd]);
 
-  // Tổng số dư tài khoản cho Header (không phụ thuộc thời gian)
   const loadHeaderTotal = useCallback(async () => {
     const db = await openDb();
     const rows = await db.getAllAsync<{
@@ -250,6 +254,10 @@ const TrangChu = () => {
     setAnchor(a);
   };
 
+  const goToCurrentPeriod = () => {
+    setAnchor(new Date());
+  };
+
   return (
     <View className="flex-1 bg-light">
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -312,7 +320,18 @@ const TrangChu = () => {
               return (
                 <TouchableOpacity
                   key={item}
-                  onPress={() => setTime(item)}
+                  onPress={() => {
+                    // Nếu người dùng chuyển sang "Khoảng thời gian", lấy sẵn range theo kỳ đang xem
+                    if (item === "Khoảng thời gian") {
+                      const r = getRange(time, anchor);
+                      const s = new Date(r.startSec * 1000);
+                      const e = new Date(r.endSec * 1000);
+                      e.setDate(e.getDate() - 1);
+                      setRangeStart(s);
+                      setRangeEnd(e);
+                    }
+                    setTime(item);
+                  }}
                   className={`px-2 py-1 border-b-2 ${
                     isActive ? "border-b-primary" : "border-b-transparent"
                   }`}
@@ -329,72 +348,96 @@ const TrangChu = () => {
 
           {/* Khoảng thời gian: 2 nút chọn ngày, ẩn mũi tên */}
           {time === "Khoảng thời gian" ? (
-            <>
-              <View className="flex-row items-center justify-center gap-2 px-4 py-1">
-                <TouchableOpacity
-                  onPress={() => setShowPicker("start")}
-                  className="px-3 py-1 rounded-lg border border-gray-300"
-                >
-                  <Text>{`${rangeStart.getDate()} thg ${rangeStart.getMonth() + 1}`}</Text>
+            <View className="px-4 py-1">
+              <View
+                style={{
+                  height: ICON_SIZE,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  position: "relative",
+                }}
+              >
+                <TouchableOpacity onPress={() => setPickerVisible(true)}>
+                  <Text className="text-primary text-lg font-bold">
+                    {fmt(rangeStart)} - {fmt(rangeEnd)}
+                  </Text>
                 </TouchableOpacity>
-                <Text>-</Text>
-                <TouchableOpacity
-                  onPress={() => setShowPicker("end")}
-                  className="px-3 py-1 rounded-lg border border-gray-300"
-                >
-                  <Text>{`${rangeEnd.getDate()} thg ${rangeEnd.getMonth() + 1}`}</Text>
-                </TouchableOpacity>
+
+                <View style={{ position: "absolute", right: 0 }}>
+                  <TouchableOpacity onPress={() => setPickerVisible(true)}>
+                    <MaterialIcons
+                      name="calendar-today"
+                      size={ICON_SIZE - 4}
+                      color="#4B5563"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
-
-              {showPicker && (
-                <DateTimePicker
-                  value={showPicker === "start" ? rangeStart : rangeEnd}
-                  mode="date"
-                  display="calendar"
-                  maximumDate={todayEOD()} // chặn chọn tương lai
-                  onChange={(evt, date) => {
-                    setShowPicker(null);
-                    if (!date) return;
-
-                    if (showPicker === "start") {
-                      const s = startOfDay(date);
-                      if (s > rangeEnd) setRangeEnd(s); // auto hợp lệ
-                      setRangeStart(s);
-                    } else {
-                      const e = startOfDay(date);
-                      if (e < rangeStart) setRangeStart(e);
-                      setRangeEnd(e);
-                    }
-                  }}
-                />
-              )}
-            </>
+            </View>
           ) : (
-            // Các chế độ còn lại: mũi tên trái/label/mũi tên phải (ẩn > nếu ở kỳ hiện tại)
-            <View className="flex-row justify-between px-4 items-center">
-              <TouchableOpacity onPress={() => shiftAnchor(-1)}>
-                <MaterialIcons
-                  name="keyboard-arrow-left"
-                  size={ICON_SIZE}
-                  color="#4B5563"
-                />
-              </TouchableOpacity>
+            <View className="px-4 py-1">
+              <View
+                style={{
+                  height: ICON_SIZE,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  position: "relative",
+                }}
+              >
+                <View style={{ position: "absolute", left: 0 }}>
+                  <TouchableOpacity onPress={() => shiftAnchor(-1)}>
+                    <MaterialIcons
+                      name="keyboard-arrow-left"
+                      size={ICON_SIZE}
+                      color="#4B5563"
+                    />
+                  </TouchableOpacity>
+                </View>
 
-              <TouchableOpacity>
-                <Text className="text-primary text-lg font-bold">{label}</Text>
-              </TouchableOpacity>
-
-              {canGoNext ? (
-                <TouchableOpacity onPress={() => shiftAnchor(1)}>
-                  <MaterialIcons
-                    name="keyboard-arrow-right"
-                    size={ICON_SIZE}
-                    color="#4B5563"
-                  />
+                <TouchableOpacity
+                  onPress={() => {
+                    setTempAnchor(anchor);
+                    setPickerVisible(true);
+                  }}
+                >
+                  <Text className="text-primary text-lg font-bold">
+                    {label}
+                  </Text>
                 </TouchableOpacity>
-              ) : (
-                <View style={{ width: ICON_SIZE, height: ICON_SIZE }} />
-              )}
+
+                <View
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  {!atCurrentPeriod && (
+                    <TouchableOpacity
+                      onPress={goToCurrentPeriod}
+                      style={{ marginRight: 10 }}
+                      accessibilityLabel="Về hôm nay / tuần này / tháng này / năm nay"
+                    >
+                      <MaterialCommunityIcons
+                        name="fast-forward-outline"
+                        size={ICON_SIZE - 2}
+                        color="#4B5563"
+                      />
+                    </TouchableOpacity>
+                  )}
+
+                  {canGoNext ? (
+                    <TouchableOpacity onPress={() => shiftAnchor(1)}>
+                      <MaterialIcons
+                        name="keyboard-arrow-right"
+                        size={ICON_SIZE}
+                        color="#4B5563"
+                      />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
             </View>
           )}
 
@@ -433,7 +476,6 @@ const TrangChu = () => {
                   )}
                 />
               ) : (
-                // Placeholder khi không có dữ liệu, tránh gọi PieChart với mảng rỗng
                 <View
                   style={{
                     width: CHART_SIZE,
@@ -513,6 +555,106 @@ const TrangChu = () => {
           ))}
         </View>
       </View>
+
+      <Portal>
+        <Modal
+          visible={pickerVisible}
+          onDismiss={() => setPickerVisible(false)}
+          contentContainerStyle={{
+            marginHorizontal: 24,
+            borderRadius: 16,
+            backgroundColor: "white",
+            padding: 12,
+            alignSelf: "center",
+            width: 340,
+            maxWidth: "95%",
+          }}
+        >
+          <CalendarPicker
+            allowRangeSelection={time === "Khoảng thời gian"}
+            selectedStartDate={
+              time === "Khoảng thời gian"
+                ? tempStart || undefined
+                : tempAnchor || undefined
+            }
+            selectedEndDate={
+              time === "Khoảng thời gian" ? tempEnd || undefined : undefined
+            }
+            initialDate={
+              time === "Khoảng thời gian"
+                ? tempStart || new Date()
+                : tempAnchor || new Date()
+            }
+            minDate={new Date(1970, 0, 1)}
+            maxDate={new Date()}
+            weekdays={VI_WEEKDAYS}
+            months={VI_MONTHS}
+            previousTitle="‹"
+            nextTitle="›"
+            todayBackgroundColor="#E6F7FF"
+            selectedDayColor="#10B981"
+            selectedDayTextColor="#fff"
+            selectedRangeStartStyle={{ backgroundColor: "#10B981" }}
+            selectedRangeEndStyle={{ backgroundColor: "#10B981" }}
+            selectedRangeStyle={{ backgroundColor: "#A7F3D0" }}
+            onDateChange={(date: Date, type?: "START_DATE" | "END_DATE") => {
+              if (time === "Khoảng thời gian") {
+                if (type === "START_DATE") {
+                  setTempStart(date);
+                  if (tempEnd && date > tempEnd) setTempEnd(null);
+                } else {
+                  setTempEnd(date);
+                }
+              } else {
+                setTempAnchor(date);
+              }
+            }}
+          />
+
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              marginTop: 8,
+            }}
+          >
+            <Button textColor="#10B981" onPress={() => setPickerVisible(false)}>
+              Huỷ
+            </Button>
+            <Button
+              textColor="#10B981"
+              onPress={() => {
+                if (time === "Khoảng thời gian") {
+                  if (!tempStart || !tempEnd) return setPickerVisible(false);
+                  const to00 = (d: Date) => {
+                    const x = new Date(d);
+                    x.setHours(0, 0, 0, 0);
+                    return x;
+                  };
+                  setRangeStart(to00(tempStart));
+                  setRangeEnd(to00(tempEnd));
+                } else {
+                  if (!tempAnchor) return setPickerVisible(false);
+                  // cập nhật anchor theo mode
+                  const d = startOfDay(tempAnchor);
+                  if (time === "Ngày") {
+                    setAnchor(d);
+                  } else if (time === "Tuần") {
+                    setAnchor(startOfWeekMon(d));
+                  } else if (time === "Tháng") {
+                    setAnchor(new Date(d.getFullYear(), d.getMonth(), 1));
+                  } else if (time === "Năm") {
+                    setAnchor(new Date(d.getFullYear(), 0, 1));
+                  }
+                }
+                setPickerVisible(false);
+              }}
+            >
+              Xong
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
     </View>
   );
 };
